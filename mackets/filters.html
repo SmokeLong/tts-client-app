@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TTS - Фильтры</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        :root {
+            --gold-light: #f4e4a6; --gold: #d4af37; --gold-dark: #b8860b;
+            --bg-dark: #0a0908; --bg-card: rgba(20, 18, 15, 0.95);
+            --border-gold: rgba(212, 175, 55, 0.3); --text-muted: rgba(212, 175, 55, 0.6);
+            --green: #4ade80; --yellow: #fbbf24; --red: #f87171;
+        }
+        body { font-family: 'Cinzel', serif; background: var(--bg-dark); min-height: 100vh; color: var(--gold); }
+        .app { max-width: 430px; margin: 0 auto; min-height: 100vh; background: url('assets/leather-texture.png') center/cover fixed; position: relative; }
+        .content { padding-bottom: 100px; }
+
+        /* Header */
+        .header { padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-gold); background: rgba(10,9,8,0.95); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 100; }
+        .back { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+        .back svg { width: 22px; height: 22px; stroke: var(--gold); fill: none; stroke-width: 2; }
+        .title { font-size: 16px; font-weight: 800; letter-spacing: 2px; color: var(--gold-light); }
+        .reset { font-size: 10px; color: var(--red); cursor: pointer; letter-spacing: 1px; }
+
+        /* Filter Section */
+        .filter-section { padding: 16px; border-bottom: 1px solid var(--border-gold); }
+        .filter-title { font-size: 11px; font-weight: 700; color: var(--gold); letter-spacing: 1.5px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+        .filter-count { font-size: 10px; color: var(--text-muted); font-weight: 400; }
+
+        /* Chips */
+        .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+        .chip { padding: 10px 14px; background: var(--bg-card); border: 1px solid var(--border-gold); border-radius: 20px; font-size: 10px; color: var(--text-muted); cursor: pointer; transition: 0.3s; letter-spacing: 0.5px; }
+        .chip:hover { border-color: var(--gold); color: var(--gold); }
+        .chip.active { background: linear-gradient(145deg, var(--gold), var(--gold-dark)); border-color: var(--gold); color: var(--bg-dark); font-weight: 700; }
+        .chip.with-dot { display: flex; align-items: center; gap: 6px; }
+        .chip-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .chip-dot.green { background: var(--green); }
+        .chip-dot.yellow { background: var(--yellow); }
+        .chip-dot.red { background: var(--red); }
+
+        /* Range Slider */
+        .range-wrap { padding: 0 8px; }
+        .range-labels { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .range-label { font-size: 10px; color: var(--text-muted); }
+        .range-values { display: flex; justify-content: space-between; margin-top: 10px; }
+        .range-value { padding: 8px 16px; background: var(--bg-card); border: 1px solid var(--border-gold); border-radius: 8px; font-size: 12px; font-weight: 700; color: var(--gold-light); min-width: 80px; text-align: center; }
+        .range-slider { width: 100%; height: 6px; -webkit-appearance: none; background: rgba(212,175,55,0.2); border-radius: 3px; outline: none; }
+        .range-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; background: linear-gradient(145deg, var(--gold), var(--gold-dark)); border-radius: 50%; cursor: pointer; box-shadow: 0 2px 8px rgba(212,175,55,0.4); }
+
+        /* Strength Scale */
+        .strength-scale { display: flex; flex-direction: column; gap: 6px; }
+        .strength-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--bg-card); border: 1px solid var(--border-gold); border-radius: 10px; cursor: pointer; transition: 0.3s; }
+        .strength-item:hover { border-color: var(--gold); }
+        .strength-item.active { border-color: var(--gold); background: rgba(212,175,55,0.1); }
+        .strength-check { width: 18px; height: 18px; border: 2px solid var(--border-gold); border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .strength-item.active .strength-check { border-color: var(--gold); background: var(--gold); }
+        .strength-item.active .strength-check::after { content: '✓'; font-size: 12px; color: var(--bg-dark); }
+        .strength-info { flex: 1; }
+        .strength-name { font-size: 10px; font-weight: 700; color: var(--gold-light); letter-spacing: 0.5px; }
+        .strength-bar { height: 4px; background: rgba(212,175,55,0.2); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+        .strength-fill { height: 100%; background: linear-gradient(90deg, var(--gold-dark), var(--gold)); border-radius: 2px; }
+
+        /* Bottom Bar */
+        .bottom { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; padding: 12px 16px 24px; background: linear-gradient(180deg, rgba(10,9,8,0.98), rgba(5,4,3,1)); border-top: 1px solid var(--border-gold); z-index: 100; display: flex; gap: 12px; }
+        .btn-reset { flex: 1; padding: 14px; background: var(--bg-card); border: 1px solid var(--border-gold); border-radius: 12px; font-family: inherit; font-size: 11px; font-weight: 700; color: var(--gold); letter-spacing: 1px; cursor: pointer; }
+        .btn-apply { flex: 2; padding: 14px; background: linear-gradient(145deg, var(--gold), var(--gold-dark)); border: none; border-radius: 12px; font-family: inherit; font-size: 11px; font-weight: 700; color: var(--bg-dark); letter-spacing: 1px; cursor: pointer; }
+        .btn-apply span { font-weight: 400; opacity: 0.8; }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <div class="content">
+            <!-- Header -->
+            <header class="header">
+                <div class="back"><svg viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg></div>
+                <span class="title">ФИЛЬТРЫ</span>
+                <span class="reset">СБРОСИТЬ</span>
+            </header>
+
+            <!-- Location -->
+            <div class="filter-section">
+                <div class="filter-title">ТОЧКА <span class="filter-count">выбрано: 1</span></div>
+                <div class="chips">
+                    <div class="chip with-dot active"><span class="chip-dot green"></span>ЦЕНТР</div>
+                    <div class="chip with-dot"><span class="chip-dot green"></span>СЕВЕРНЫЙ</div>
+                    <div class="chip with-dot"><span class="chip-dot yellow"></span>ЛБ</div>
+                </div>
+            </div>
+
+            <!-- Product Type -->
+            <div class="filter-section">
+                <div class="filter-title">ТИП ПРОДУКТА</div>
+                <div class="chips">
+                    <div class="chip active">ТАБАЧНЫЙ</div>
+                    <div class="chip active">ЦЕЛЛЮЛОЗА</div>
+                </div>
+            </div>
+
+            <!-- Strength -->
+            <div class="filter-section">
+                <div class="filter-title">КРЕПОСТЬ <span class="filter-count">выбрано: 2</span></div>
+                <div class="strength-scale">
+                    <div class="strength-item active">
+                        <div class="strength-check"></div>
+                        <div class="strength-info">
+                            <div class="strength-name">ОЧЕНЬ КРЕПКИЙ</div>
+                            <div class="strength-bar"><div class="strength-fill" style="width:100%"></div></div>
+                        </div>
+                    </div>
+                    <div class="strength-item active">
+                        <div class="strength-check"></div>
+                        <div class="strength-info">
+                            <div class="strength-name">КРЕПКИЙ</div>
+                            <div class="strength-bar"><div class="strength-fill" style="width:85%"></div></div>
+                        </div>
+                    </div>
+                    <div class="strength-item">
+                        <div class="strength-check"></div>
+                        <div class="strength-info">
+                            <div class="strength-name">СРЕДНЕ-КРЕПКИЙ С УПОРОМ В КРЕП.</div>
+                            <div class="strength-bar"><div class="strength-fill" style="width:70%"></div></div>
+                        </div>
+                    </div>
+                    <div class="strength-item">
+                        <div class="strength-check"></div>
+                        <div class="strength-info">
+                            <div class="strength-name">СРЕДНЕ-КРЕПКИЙ С УПОРОМ В СРЕД.</div>
+                            <div class="strength-bar"><div class="strength-fill" style="width:60%"></div></div>
+                        </div>
+                    </div>
+                    <div class="strength-item">
+                        <div class="strength-check"></div>
+                        <div class="strength-info">
+                            <div class="strength-name">СРЕДНИЙ</div>
+                            <div class="strength-bar"><div class="strength-fill" style="width:50%"></div></div>
+                        </div>
+                    </div>
+                    <div class="strength-item">
+                        <div class="strength-check"></div>
+                        <div class="strength-info">
+                            <div class="strength-name">СРЕДНЕ-ЛЕГКИЙ С УПОРОМ В СРЕД.</div>
+                            <div class="strength-bar"><div class="strength-fill" style="width:40%"></div></div>
+                        </div>
+                    </div>
+                    <div class="strength-item">
+                        <div class="strength-check"></div>
+                        <div class="strength-info">
+                            <div class="strength-name">СРЕДНЕ-ЛЕГКИЙ С УПОРОМ В ЛЕГ.</div>
+                            <div class="strength-bar"><div class="strength-fill" style="width:30%"></div></div>
+                        </div>
+                    </div>
+                    <div class="strength-item">
+                        <div class="strength-check"></div>
+                        <div class="strength-info">
+                            <div class="strength-name">ЛЁГКИЙ</div>
+                            <div class="strength-bar"><div class="strength-fill" style="width:20%"></div></div>
+                        </div>
+                    </div>
+                    <div class="strength-item">
+                        <div class="strength-check"></div>
+                        <div class="strength-info">
+                            <div class="strength-name">ОЧЕНЬ ЛЁГКИЙ</div>
+                            <div class="strength-bar"><div class="strength-fill" style="width:10%"></div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Effect Type -->
+            <div class="filter-section">
+                <div class="filter-title">ТИП ЭФФЕКТА</div>
+                <div class="chips">
+                    <div class="chip active">РЕЗКИЙ</div>
+                    <div class="chip">ПЛАВНЫЙ</div>
+                </div>
+            </div>
+
+            <!-- Pouch Type -->
+            <div class="filter-section">
+                <div class="filter-title">ПАКЕТИКИ</div>
+                <div class="chips">
+                    <div class="chip">КЛАССИЧЕСКИЕ</div>
+                    <div class="chip active">СЛИМ</div>
+                    <div class="chip">МИНИ-СЛИМ</div>
+                </div>
+            </div>
+
+            <!-- Pack Count -->
+            <div class="filter-section">
+                <div class="filter-title">КОЛ-ВО ПАКОВ</div>
+                <div class="chips">
+                    <div class="chip">&lt;20</div>
+                    <div class="chip active">20</div>
+                    <div class="chip">30</div>
+                    <div class="chip">55</div>
+                </div>
+            </div>
+
+            <!-- Flavor -->
+            <div class="filter-section">
+                <div class="filter-title">АРОМКА <span class="filter-count">выбрано: 3</span></div>
+                <div class="chips">
+                    <div class="chip active">🌿 МЯТА</div>
+                    <div class="chip active">🍇 ФРУКТЫ</div>
+                    <div class="chip active">🍓 ЯГОДЫ</div>
+                    <div class="chip">🍬 ЖВАЧКИ</div>
+                    <div class="chip">🥤 НАПИТКИ</div>
+                    <div class="chip">🍰 ДЕСЕРТЫ</div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Bottom Bar -->
+        <div class="bottom">
+            <button class="btn-reset">СБРОСИТЬ</button>
+            <button class="btn-apply">ПОКАЗАТЬ <span>(87)</span></button>
+        </div>
+    </div>
+
+    <script>
+        // Chip toggle
+        document.querySelectorAll('.chip').forEach(chip => {
+            chip.addEventListener('click', () => chip.classList.toggle('active'));
+        });
+
+        // Strength toggle
+        document.querySelectorAll('.strength-item').forEach(item => {
+            item.addEventListener('click', () => item.classList.toggle('active'));
+        });
+
+        // Reset
+        document.querySelectorAll('.btn-reset, .reset').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.chip.active, .strength-item.active').forEach(el => el.classList.remove('active'));
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,292 +1,372 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
-import ProductCard from '../components/ProductCard'
+import { useCartStore } from '../stores/cartStore'
+import QuantitySelector from '../components/ui/QuantitySelector'
 
-function Product() {
+function mapProduct(raw) {
+  return {
+    id: raw.id,
+    name: raw.название,
+    brand: raw.бренд,
+    lineup: raw.линейка,
+    category: raw.категория,
+    priceCash: raw.цена_нал,
+    priceCard: raw.цена_безнал,
+    strength: raw.крепость,
+    flavor: raw.вкус,
+    format: raw.формат_пакетов,
+    packets: raw.кол_во_пакетов,
+    photo: raw.фото_url,
+    active: raw.активен,
+  }
+}
+
+function getFlavorEmoji(flavor) {
+  if (!flavor) return '📦'
+  const f = flavor.toLowerCase()
+  if (f.includes('мят')) return '🌿'
+  if (f.includes('виноград') || f.includes('grape')) return '🍇'
+  if (f.includes('манго') || f.includes('mango')) return '🥭'
+  if (f.includes('арбуз') || f.includes('watermelon')) return '🍉'
+  if (f.includes('ягод') || f.includes('berry')) return '🫐'
+  if (f.includes('цитрус') || f.includes('лимон')) return '🍋'
+  if (f.includes('кола') || f.includes('cola')) return '🥤'
+  if (f.includes('лёд') || f.includes('ice') || f.includes('cool')) return '❄️'
+  if (f.includes('кофе') || f.includes('coffee')) return '☕'
+  if (f.includes('персик') || f.includes('peach')) return '🍑'
+  if (f.includes('яблок') || f.includes('apple')) return '🍏'
+  if (f.includes('вишн') || f.includes('cherry')) return '🍒'
+  return '📦'
+}
+
+function dotColor(qty) {
+  if (qty >= 5) return 'green'
+  if (qty >= 1) return 'yellow'
+  return 'red'
+}
+
+function stockLabel(qty) {
+  if (qty >= 5) return '5+'
+  if (qty >= 1) return String(qty)
+  return '0'
+}
+
+const LOCATIONS = [
+  { id: 1, name: 'ЦЕНТР', address: 'У Атмосферы' },
+  { id: 2, name: 'СЕВЕРНЫЙ', address: '17 квартал' },
+  { id: 3, name: 'ЛБ', address: 'Вкусно И. на Димитрова' },
+]
+
+export default function Product() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { addToCart, addToFavorites, removeFromFavorites, favorites } = useApp()
+  const addItem = useCartStore((s) => s.addItem)
+  const cartItems = useCartStore((s) => s.items)
 
   const [product, setProduct] = useState(null)
+  const [stock, setStock] = useState({})
   const [loading, setLoading] = useState(true)
-  const [quantity, setQuantity] = useState(1)
-  const [analogues, setAnalogues] = useState([])
-  const [inventory, setInventory] = useState([])
-
-  const isFavorite = favorites.some(f => f.id === parseInt(id))
+  const [qty, setQty] = useState(1)
+  const [isFavorite, setIsFavorite] = useState(false)
 
   useEffect(() => {
     loadProduct()
   }, [id])
 
-  const loadProduct = async () => {
+  async function loadProduct() {
     setLoading(true)
-    try {
-      // Загрузить товар
-      const { data: prod, error } = await supabase
-        .from('товары')
-        .select('*')
-        .eq('id', id)
-        .single()
+    const [prodRes, invRes] = await Promise.all([
+      supabase.from('товары').select('*').eq('id', id).single(),
+      supabase.from('инвентарь').select('*').eq('товар_id', id),
+    ])
 
-      if (error) throw error
-      setProduct(prod)
+    if (prodRes.data) setProduct(mapProduct(prodRes.data))
 
-      // Загрузить остатки
-      const { data: inv } = await supabase
-        .from('инвентарь')
-        .select('точка_id, количество, точки(название)')
-        .eq('товар_id', id)
-
-      setInventory(inv || [])
-
-      // Загрузить аналоги (тот же бренд или вкус)
-      if (prod) {
-        const { data: similar } = await supabase
-          .from('товары')
-          .select('*')
-          .eq('активен', true)
-          .eq('бренд', prod.бренд)
-          .neq('id', prod.id)
-          .limit(6)
-
-        setAnalogues(similar || [])
+    if (invRes.data) {
+      const s = {}
+      for (const row of invRes.data) {
+        s[row.точка_id] = row.количество
       }
-    } catch (error) {
-      console.error('Ошибка загрузки товара:', error)
-    } finally {
-      setLoading(false)
+      setStock(s)
     }
+    setLoading(false)
   }
 
-  const handleAddToCart = () => {
-    if (product) {
-      addToCart({
-        id: product.id,
-        name: product.название,
-        brand: product.бренд,
-        photo: product.фото_url,
-        price_card: product.цена_безнал,
-        price_cash: product.цена_нал,
-      }, quantity)
-
-      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
-      navigate('/cart')
+  function handleAddToCart() {
+    if (!product) return
+    for (let i = 0; i < qty; i++) {
+      addItem(product)
     }
+    navigate('/cart')
   }
 
-  const handleToggleFavorite = () => {
-    if (isFavorite) {
-      removeFromFavorites(product.id)
-    } else {
-      addToFavorites(product)
+  function handlePreorder() {
+    if (!product) return
+    for (let i = 0; i < qty; i++) {
+      addItem(product)
     }
+    navigate('/cart')
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-tts-dark flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-tts-primary border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen leather-bg flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-[var(--gold)] border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
 
   if (!product) {
     return (
-      <div className="min-h-screen bg-tts-dark flex flex-col items-center justify-center p-4">
-        <div className="text-4xl mb-4">😕</div>
-        <p className="text-white font-medium mb-4">Товар не найден</p>
-        <button onClick={() => navigate(-1)} className="bg-tts-primary text-white px-6 py-2 rounded-xl">
-          Назад
-        </button>
+      <div className="min-h-screen leather-bg flex flex-col items-center justify-center gap-3">
+        <p className="text-[36px]">😕</p>
+        <p className="text-[12px] text-[var(--text-muted)]">Товар не найден</p>
+        <button onClick={() => navigate(-1)} className="text-[11px] text-[var(--gold)] mt-2">← Назад</button>
       </div>
     )
   }
 
-  const priceCash = product.цена_нал || 0
-  const priceCard = product.цена_безнал || 0
+  const emoji = getFlavorEmoji(product.flavor)
+  const cartCount = cartItems.reduce((sum, i) => sum + i.qty, 0)
+
+  const specs = [
+    { icon: '⚡', label: 'КРЕПОСТЬ', value: product.strength || '—' },
+    { icon: '📦', label: 'ПАКЕТИКОВ', value: product.packets ? `${product.packets} ШТ` : '—' },
+    { icon: '💨', label: 'ТИП ЭФФЕКТА', value: product.category || '—' },
+    { icon: '🎯', label: 'ФОРМАТ', value: product.format || '—' },
+    { icon: '🧪', label: 'ТИП ПРОДУКТА', value: product.category || '—' },
+    { icon: '🍃', label: 'АРОМКА', value: product.flavor || '—' },
+  ]
+
+  // Effect bars (hardcoded for now as we don't have this data)
+  const effects = [
+    { label: 'КРЕПОСТЬ', value: getStrengthLevel(product.strength) },
+    { label: 'СИЛА ЖЖЕНИЯ', value: Math.max(3, getStrengthLevel(product.strength) - 1) },
+    { label: 'НАСЫЩЕННОСТЬ АРОМКИ', value: 7 },
+    { label: 'ОБЩАЯ ОЦЕНКА КАЧЕСТВА', value: 8 },
+  ]
 
   return (
-    <div className="min-h-screen bg-tts-dark pb-32">
-      {/* Шапка */}
-      <div className="sticky top-0 z-10 bg-tts-dark/95 backdrop-blur-sm px-4 py-3 flex items-center justify-between">
-        <button onClick={() => navigate(-1)} className="w-10 h-10 bg-tts-card rounded-full flex items-center justify-center">
-          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <button onClick={handleToggleFavorite} className="w-10 h-10 bg-tts-card rounded-full flex items-center justify-center">
-          <svg
-            className={`w-6 h-6 ${isFavorite ? 'text-tts-danger fill-current' : 'text-white'}`}
-            fill={isFavorite ? 'currentColor' : 'none'}
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-          </svg>
-        </button>
-      </div>
-
-      {/* Фото */}
-      <div className="aspect-square bg-tts-card mx-4 rounded-2xl overflow-hidden mb-4">
-        {product.фото_url ? (
-          <img src={product.фото_url} alt={product.название} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-6xl">📦</div>
-        )}
-      </div>
-
-      <div className="px-4">
-        {/* Название и бренд */}
-        <div className="mb-4">
-          <p className="text-tts-primary text-sm font-medium mb-1">{product.бренд}</p>
-          <h1 className="text-xl font-bold text-white">{product.название}</h1>
-          {product.линейка && (
-            <p className="text-tts-muted text-sm mt-1">{product.линейка}</p>
-          )}
-        </div>
-
-        {/* Характеристики */}
-        <div className="bg-tts-card rounded-2xl p-4 mb-4">
-          <div className="grid grid-cols-2 gap-3">
-            {product.крепость > 0 && (
-              <div>
-                <p className="text-tts-muted text-xs mb-1">Крепость</p>
-                <p className="text-white font-medium">💪 {product.крепость}</p>
-              </div>
-            )}
-            {product.крепость_текст && (
-              <div>
-                <p className="text-tts-muted text-xs mb-1">Уровень</p>
-                <p className="text-white font-medium">{product.крепость_текст}</p>
-              </div>
-            )}
-            {product.кол_во_пакетов > 0 && (
-              <div>
-                <p className="text-tts-muted text-xs mb-1">Пакетов</p>
-                <p className="text-white font-medium">{product.кол_во_пакетов} шт</p>
-              </div>
-            )}
-            {product.формат_пакетов && (
-              <div>
-                <p className="text-tts-muted text-xs mb-1">Формат</p>
-                <p className="text-white font-medium">{product.формат_пакетов}</p>
-              </div>
-            )}
-            {product.вкус && (
-              <div>
-                <p className="text-tts-muted text-xs mb-1">Вкус</p>
-                <p className="text-white font-medium">{product.вкус}</p>
-              </div>
-            )}
-            {product.тип && (
-              <div>
-                <p className="text-tts-muted text-xs mb-1">Тип</p>
-                <p className="text-white font-medium">{product.тип}</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Наличие на точках */}
-        {inventory.length > 0 && (
-          <div className="bg-tts-card rounded-2xl p-4 mb-4">
-            <p className="text-tts-muted text-sm mb-3">Наличие на точках:</p>
-            <div className="flex flex-wrap gap-2">
-              {inventory.map((inv, i) => (
-                <div
-                  key={i}
-                  className={`px-3 py-1.5 rounded-lg text-sm ${
-                    inv.количество > 0
-                      ? 'bg-tts-success/20 text-tts-success'
-                      : 'bg-tts-danger/20 text-tts-danger'
-                  }`}
-                >
-                  {inv.точки?.название || 'Точка'}: {inv.количество > 0 ? inv.количество + ' шт' : 'нет'}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Цены */}
-        <div className="bg-tts-card rounded-2xl p-4 mb-4">
-          <div className="flex justify-between items-center mb-3">
-            <div>
-              <p className="text-tts-muted text-xs mb-1">💳 По карте</p>
-              <p className="text-white text-xl font-bold">{priceCard} ₽</p>
-            </div>
-            <div className="text-right">
-              <p className="text-tts-muted text-xs mb-1">💵 Наличными</p>
-              <p className="text-tts-success text-xl font-bold">{priceCash} ₽</p>
-            </div>
-          </div>
-          {priceCard > priceCash && priceCash > 0 && (
-            <div className="bg-tts-success/10 rounded-xl p-3 text-center">
-              <p className="text-tts-success text-sm">
-                💰 За нал выгода: <span className="font-bold">{priceCard - priceCash} ₽</span>
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Аналоги */}
-        {analogues.length > 0 && (
-          <div className="mb-4">
-            <p className="text-white font-medium mb-3">Ещё от {product.бренд}:</p>
-            <div className="flex gap-3 overflow-x-auto pb-2">
-              {analogues.map(item => (
-                <button
-                  key={item.id}
-                  onClick={() => navigate('/product/' + item.id)}
-                  className="flex-shrink-0 w-28 bg-tts-card rounded-xl p-2"
-                >
-                  <div className="aspect-square bg-tts-dark rounded-lg mb-2 overflow-hidden">
-                    {item.фото_url ? (
-                      <img src={item.фото_url} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">📦</div>
-                    )}
-                  </div>
-                  <p className="text-white text-xs truncate">{item.название}</p>
-                  <p className="text-tts-success text-xs font-medium">{item.цена_нал || item.цена_безнал} ₽</p>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Нижняя панель — добавить в корзину */}
-      <div className="fixed bottom-0 left-0 right-0 bg-tts-dark border-t border-tts-card p-4">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center bg-tts-card rounded-xl">
-            <button
-              onClick={() => setQuantity(q => Math.max(1, q - 1))}
-              className="w-10 h-10 flex items-center justify-center text-white text-xl"
-            >
-              −
-            </button>
-            <span className="w-8 text-center text-white font-medium">{quantity}</span>
-            <button
-              onClick={() => setQuantity(q => q + 1)}
-              className="w-10 h-10 flex items-center justify-center text-white text-xl"
-            >
-              +
-            </button>
-          </div>
-          <button
-            onClick={handleAddToCart}
-            className="flex-1 bg-tts-primary text-white py-3 rounded-xl font-medium active:scale-95 transition-transform"
-          >
-            В корзину · {((priceCash || priceCard) * quantity)} ₽
+    <div className="min-h-screen leather-bg">
+      <div className="max-w-app mx-auto min-h-screen relative pb-[180px]">
+        {/* Header */}
+        <header className="sticky top-0 z-50 px-4 py-3.5 flex items-center justify-between border-b border-[var(--border-gold)] bg-[rgba(10,9,8,0.95)] backdrop-blur-lg">
+          <button onClick={() => navigate(-1)} className="flex items-center gap-2 press-effect">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="2">
+              <path d="M15 19l-7-7 7-7" />
+            </svg>
+            <span className="text-[12px] text-[var(--text-muted)] tracking-wider">{product.lineup || product.brand}</span>
           </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setIsFavorite(!isFavorite)}
+              className={`w-10 h-10 card flex items-center justify-center press-effect ${isFavorite ? 'bg-[rgba(212,175,55,0.2)] border-[var(--gold)]' : ''}`}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24"
+                fill={isFavorite ? 'var(--gold)' : 'none'}
+                stroke={isFavorite ? 'var(--gold)' : 'var(--gold)'}
+                strokeWidth="1.5"
+              >
+                <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              </svg>
+            </button>
+            <button
+              onClick={() => navigate('/cart')}
+              className="w-10 h-10 card flex items-center justify-center press-effect relative"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="1.5">
+                <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              {cartCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full gold-gradient-bg text-[var(--bg-dark)] text-[10px] font-extrabold flex items-center justify-center">
+                  {cartCount}
+                </span>
+              )}
+            </button>
+          </div>
+        </header>
+
+        {/* Hero */}
+        <div className="relative py-8 flex items-center justify-center min-h-[280px] bg-gradient-to-b from-[rgba(25,22,20,0.9)] to-[rgba(10,9,8,0.95)] animate-scaleIn">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200px] h-[200px] bg-[radial-gradient(circle,rgba(212,175,55,0.1)_0%,transparent_70%)] pointer-events-none" />
+          {product.badge && (
+            <div className="absolute top-5 left-5 flex flex-col gap-2">
+              <span className="px-3.5 py-2 gold-gradient-bg rounded-full text-[10px] font-bold text-[var(--bg-dark)] tracking-wider shadow-[0_4px_15px_rgba(212,175,55,0.3)]">
+                {product.badge}
+              </span>
+            </div>
+          )}
+          <div className="text-[120px] relative z-10 drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
+            {emoji}
+          </div>
+        </div>
+
+        {/* Product Info */}
+        <div className="px-5 py-6 animate-fadeInUp">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-[11px] text-[var(--text-muted)] tracking-[2px]">{product.brand}</span>
+            {product.lineup && (
+              <span className="text-[11px] text-[var(--gold)] tracking-wider px-2.5 py-1 bg-[rgba(212,175,55,0.1)] rounded-xl">
+                {product.lineup}
+              </span>
+            )}
+          </div>
+          <h1 className="text-[26px] font-black tracking-[2px] leading-tight mb-4 gold-gradient-text">
+            {product.name}
+          </h1>
+          <p className="text-[12px] text-[var(--text-muted)] leading-relaxed mb-5">
+            {product.flavor ? `${product.flavor}. ` : ''}
+            {product.strength ? `Крепость: ${product.strength}. ` : ''}
+            {product.format ? `Формат: ${product.format}.` : ''}
+          </p>
+
+          {/* Specs Grid */}
+          <div className="grid grid-cols-2 gap-2.5 mb-6">
+            {specs.map((spec) => (
+              <div key={spec.label} className="card p-3.5 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-[10px] bg-[rgba(212,175,55,0.1)] flex items-center justify-center text-[18px] shrink-0">
+                  {spec.icon}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[8px] text-[var(--text-muted)] tracking-wider mb-0.5">{spec.label}</p>
+                  <p className="text-[12px] font-bold text-[var(--gold-light)] truncate">{spec.value}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="h-px bg-gradient-to-r from-transparent via-[var(--border-gold)] to-transparent mx-5" />
+
+        {/* Stock by Location */}
+        <div className="px-5 py-5">
+          <h3 className="text-[12px] font-bold text-[var(--gold)] tracking-[2px] mb-3.5 flex items-center gap-2">
+            <span className="text-[10px]">★</span> НАЛИЧИЕ НА ТОЧКАХ
+          </h3>
+          <div className="flex flex-col gap-2.5">
+            {LOCATIONS.map((loc) => {
+              const qty_val = stock[loc.id] ?? 0
+              const color = dotColor(qty_val)
+              return (
+                <div key={loc.id} className="card p-3.5 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-2.5 h-2.5 rounded-full bg-[var(--${color})]`}
+                      style={{ boxShadow: `0 0 10px var(--${color})` }}
+                    />
+                    <div>
+                      <p className="text-[12px] font-bold text-[var(--gold-light)] mb-0.5">{loc.name}</p>
+                      <p className="text-[9px] text-[var(--text-muted)]">{loc.address}</p>
+                    </div>
+                  </div>
+                  <span className={`text-[14px] font-extrabold text-[var(--${color})]`}>
+                    {stockLabel(qty_val)}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        <div className="h-px bg-gradient-to-r from-transparent via-[var(--border-gold)] to-transparent mx-5" />
+
+        {/* Effect Bars */}
+        <div className="px-5 py-5">
+          <h3 className="text-[12px] font-bold text-[var(--gold)] tracking-[2px] mb-3.5 flex items-center gap-2">
+            <span className="text-[10px]">★</span> ХАРАКТЕРИСТИКИ
+          </h3>
+          <div className="flex flex-col gap-3.5">
+            {effects.map((eff) => (
+              <div key={eff.label} className="flex flex-col gap-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] text-[var(--text-muted)] tracking-wider">{eff.label}</span>
+                  <span className="text-[10px] font-bold text-[var(--gold)]">{eff.value}/10</span>
+                </div>
+                <div className="h-1.5 bg-[rgba(212,175,55,0.1)] rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-[var(--gold-dark)] to-[var(--gold)] transition-all duration-500"
+                    style={{ width: `${eff.value * 10}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="h-px bg-gradient-to-r from-transparent via-[var(--border-gold)] to-transparent mx-5" />
+
+        {/* Reviews placeholder */}
+        <div className="px-5 py-5">
+          <div className="flex justify-between items-center mb-3.5">
+            <h3 className="text-[12px] font-bold text-[var(--gold)] tracking-[2px] flex items-center gap-2">
+              <span className="text-[10px]">★</span> ОТЗЫВЫ
+            </h3>
+            <span className="text-[11px] text-[var(--gold)] tracking-wider cursor-pointer">СМОТРЕТЬ ВСЕ →</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex gap-0.5">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <svg key={star} width="16" height="16" viewBox="0 0 24 24"
+                  fill={star <= 4 ? 'var(--gold)' : 'var(--border-gold)'}
+                >
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                </svg>
+              ))}
+            </div>
+            <span className="text-[11px] text-[var(--text-muted)]">4.0 · 0 отзывов</span>
+          </div>
+        </div>
+
+        {/* Bottom Action Bar */}
+        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-app bg-[linear-gradient(180deg,rgba(10,9,8,0.98),rgba(5,4,3,1))] border-t border-[var(--border-gold)] z-50 backdrop-blur-xl">
+          <div className="px-5 pt-4 pb-7">
+            {/* Price row */}
+            <div className="flex items-center justify-between mb-3.5">
+              <div className="flex items-baseline gap-2.5">
+                <span className="text-[28px] font-black text-[var(--gold-light)]">
+                  {product.priceCash} <span className="text-[16px] text-[var(--gold)]">₽</span>
+                </span>
+                {product.priceCard > product.priceCash && (
+                  <span className="text-[16px] text-[var(--text-muted)] line-through">
+                    {product.priceCard}₽
+                  </span>
+                )}
+              </div>
+              <QuantitySelector value={qty} onChange={setQty} />
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={handlePreorder}
+                className="flex-1 py-4 card text-[var(--gold)] font-bold text-[11px] tracking-wider press-effect"
+              >
+                ПРЕДЗАКАЗ НА ТОЧКУ
+              </button>
+              <button
+                onClick={handleAddToCart}
+                className="flex-[2] py-4 gold-gradient-bg rounded-[14px] text-[var(--bg-dark)] font-bold text-[12px] tracking-wider press-effect shadow-[0_4px_20px_rgba(212,175,55,0.3)]"
+              >
+                ОФОРМИТЬ ЗАКАЗ
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   )
 }
 
-export default Product
+function getStrengthLevel(strength) {
+  if (!strength) return 5
+  const s = strength.toLowerCase()
+  if (s.includes('очень крепк')) return 10
+  if (s.includes('крепк')) return 8
+  if (s.includes('средне-крепк')) return 7
+  if (s.includes('средн')) return 5
+  if (s.includes('средне-лёг') || s.includes('средне-лег')) return 4
+  if (s.includes('лёг') || s.includes('лег')) return 3
+  if (s.includes('очень лёг') || s.includes('очень лег')) return 1
+  return 5
+}

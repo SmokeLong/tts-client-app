@@ -1,197 +1,310 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
-import BottomNav from '../components/BottomNav'
-import ProductCard from '../components/ProductCard'
+import { useAuthStore } from '../stores/authStore'
+import { useCartStore } from '../stores/cartStore'
+import AppShell from '../components/layout/AppShell'
+import Header from '../components/layout/Header'
 
-function Home() {
+function getFlavorEmoji(flavor) {
+  if (!flavor) return '📦'
+  const f = flavor.toLowerCase()
+  if (f.includes('мят') || f.includes('mint')) return '🌿'
+  if (f.includes('виноград') || f.includes('grape')) return '🍇'
+  if (f.includes('манго') || f.includes('mango')) return '🥭'
+  if (f.includes('арбуз') || f.includes('watermelon')) return '🍉'
+  if (f.includes('ягод') || f.includes('berry')) return '🫐'
+  if (f.includes('цитрус') || f.includes('лимон')) return '🍋'
+  if (f.includes('кола') || f.includes('cola')) return '🥤'
+  if (f.includes('лёд') || f.includes('ice') || f.includes('cool')) return '❄️'
+  if (f.includes('кофе') || f.includes('coffee')) return '☕'
+  if (f.includes('персик') || f.includes('peach')) return '🍑'
+  if (f.includes('яблок') || f.includes('apple')) return '🍏'
+  if (f.includes('вишн') || f.includes('cherry')) return '🍒'
+  if (f.includes('энерг') || f.includes('energy')) return '⚡'
+  return '📦'
+}
+
+export default function Home() {
   const navigate = useNavigate()
-  const { client, cartCount } = useApp()
-  const [panels, setPanels] = useState([])
-  const [allProducts, setAllProducts] = useState([])
+  const client = useAuthStore((s) => s.client)
+  const addItem = useCartStore((s) => s.addItem)
+
+  const [topProducts, setTopProducts] = useState([])
+  const [newProducts, setNewProducts] = useState([])
+  const [topIndex, setTopIndex] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
 
   useEffect(() => {
-    loadHomeData()
+    loadProducts()
   }, [])
 
-  const loadHomeData = async () => {
-    try {
-      const { data: products, error: prodError } = await supabase
-        .from('товары')
-        .select('*')
-        .eq('активен', true)
-        .order('название')
+  async function loadProducts() {
+    setLoading(true)
 
-      if (prodError) {
-        console.error('Supabase error:', prodError)
-        setError(prodError.message)
-        throw prodError
-      }
+    // Load products for top demand (most popular - just get first batch)
+    const { data: products } = await supabase
+      .from('товары')
+      .select('*')
+      .eq('активен', true)
+      .limit(20)
 
-      console.log('Загружено товаров:', products?.length)
-      setAllProducts(products || [])
+    if (products) {
+      const mapped = products.map(mapProduct)
+      // "Top demand" - first 10 products
+      setTopProducts(mapped.slice(0, 10))
+      // "Latest" - last 10 products
+      setNewProducts(mapped.slice(10, 20).length ? mapped.slice(10, 20) : mapped.slice(0, 8))
+    }
+    setLoading(false)
+  }
 
-      // Автоматические панели из товаров
-      const autoPanels = []
-
-      if (products && products.length > 0) {
-        // Топ дня — случайные 10
-        const shuffled = [...products].sort(() => Math.random() - 0.5)
-        autoPanels.push({
-          id: 'auto-top',
-          название: '🔥 Топ дня',
-          тип: 'top_day',
-          products: shuffled.slice(0, 10)
-        })
-
-        // Новинки — последние 10
-        const newest = [...products]
-          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-          .slice(0, 10)
-        autoPanels.push({
-          id: 'auto-new',
-          название: '🆕 Новинки',
-          тип: 'new_arrivals',
-          products: newest
-        })
-
-        // Топ бренды
-        const brandCount = {}
-        products.forEach(p => {
-          if (p.бренд) brandCount[p.бренд] = (brandCount[p.бренд] || 0) + 1
-        })
-        const topBrands = Object.entries(brandCount)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 3)
-          .map(([brand]) => brand)
-
-        topBrands.forEach(brand => {
-          autoPanels.push({
-            id: 'auto-brand-' + brand,
-            название: '⭐ ' + brand,
-            тип: 'brand',
-            products: products.filter(p => p.бренд === brand).slice(0, 10)
-          })
-        })
-      }
-
-      setPanels(autoPanels)
-    } catch (err) {
-      console.error('Ошибка загрузки:', err)
-    } finally {
-      setLoading(false)
+  function mapProduct(raw) {
+    return {
+      id: raw.id,
+      name: raw.название,
+      brand: raw.бренд,
+      lineup: raw.линейка,
+      priceCash: raw.цена_нал,
+      priceCard: raw.цена_безнал,
+      strength: raw.крепость,
+      flavor: raw.вкус,
+      packets: raw.кол_во_пакетов,
+      photo: raw.фото_url,
     }
   }
 
-  const PanelSection = ({ title, products, type }) => {
-    if (!products || products.length === 0) return null
-    return (
-      <div className="mb-6">
-        <div className="flex justify-between items-center mb-3 px-4">
-          <h2 className="text-lg font-bold text-white">{title}</h2>
-          <button
-            onClick={() => navigate('/catalog?panel=' + type)}
-            className="text-tts-primary text-sm"
-          >
-            Все →
-          </button>
-        </div>
-        <div className="flex gap-3 overflow-x-auto px-4 pb-2 scrollbar-hide">
-          {products.map(product => (
-            <div key={product.id} className="flex-shrink-0 w-40">
-              <ProductCard product={product} compact />
-            </div>
-          ))}
-        </div>
-      </div>
-    )
+  const initial = client?.имя?.charAt(0)?.toUpperCase() || 'T'
+  const name = client?.имя || 'TTS Клиент'
+  const uid = client?.уникальный_номер || client?.id || '0000'
+  const discount = client?.постоянная_скидка || 0
+  const tcoins = client?.баланс_ткоинов || 0
+
+  const quickActions = [
+    { label: 'Каталог', emoji: '🏪', path: '/catalog' },
+    { label: 'Заказ', emoji: '⚡', path: '/quick-order' },
+    { label: 'История', emoji: '📋', path: '/orders' },
+    { label: 'Избранное', emoji: '❤️', path: '/favorites' },
+    { label: 'Корзина', emoji: '🛒', path: '/cart' },
+  ]
+
+  // Top demand: show one product at a time as a panel
+  const currentTop = topProducts[topIndex]
+
+  function nextTop() {
+    setTopIndex((i) => (i + 1) % topProducts.length)
+  }
+  function prevTop() {
+    setTopIndex((i) => (i - 1 + topProducts.length) % topProducts.length)
   }
 
   return (
-    <div className="min-h-screen bg-tts-dark pb-24">
-      {/* Шапка */}
-      <div className="sticky top-0 z-10 bg-tts-dark/95 backdrop-blur-sm px-4 py-3">
-        <div className="flex items-center justify-between">
-          <button onClick={() => navigate('/profile')} className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-tts-primary rounded-full flex items-center justify-center">
-              <span className="text-lg font-bold text-white">
-                {client?.имя?.charAt(0) || client?.first_name?.charAt(0) || 'T'}
+    <AppShell>
+      <Header showSearch showCart />
+
+      <div className="px-4 py-4 space-y-4 animate-fadeIn">
+        {/* Profile Card */}
+        <div
+          className="card p-4 press-effect cursor-pointer"
+          onClick={() => navigate('/profile')}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-[50px] h-[50px] rounded-full gold-gradient-bg flex items-center justify-center text-[var(--bg-dark)] font-bold text-[18px] shadow-lg shadow-[rgba(212,175,55,0.3)] border-2 border-[var(--gold)]">
+              {initial}
+            </div>
+            <div className="flex-1">
+              <p className="text-[14px] font-bold gold-gradient-text">{name.toUpperCase()}</p>
+              <p className="text-[10px] text-[var(--text-muted)]">ID: #{uid}</p>
+            </div>
+            <div className="text-right">
+              <div className="px-3 py-1 rounded-full bg-[rgba(74,222,128,0.15)] text-[var(--green)] text-[12px] font-bold mb-1">
+                {discount}%
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-[12px]">🪙</span>
+                <span className="text-[12px] font-bold text-[var(--gold-light)]">{tcoins}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="grid grid-cols-5 gap-2">
+          {quickActions.map((action) => (
+            <div
+              key={action.label}
+              onClick={() => navigate(action.path)}
+              className="card p-2 flex flex-col items-center gap-1.5 press-effect cursor-pointer"
+            >
+              <div className="w-9 h-9 rounded-full bg-[rgba(212,175,55,0.1)] flex items-center justify-center text-[16px]">
+                {action.emoji}
+              </div>
+              <span className="text-[8px] text-[var(--text-muted)] text-center leading-tight font-semibold">
+                {action.label}
               </span>
             </div>
-          </button>
-          <div className="flex items-center gap-2">
-            <span className="text-xl font-bold text-white">TTS</span>
-            <span className="text-tts-muted">Shop</span>
-          </div>
-          <div className="flex items-center gap-2 bg-tts-card px-3 py-2 rounded-xl">
-            <span className="text-tts-warning">🪙</span>
-            <span className="text-white font-medium">{client?.баланс_ткоинов || 0}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Поиск */}
-      <div className="px-4 mb-4">
-        <button onClick={() => navigate('/catalog')} className="w-full bg-tts-card rounded-xl px-4 py-3 flex items-center gap-3">
-          <svg className="w-5 h-5 text-tts-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <span className="text-tts-muted">Найти товар...</span>
-        </button>
-      </div>
-
-      {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="w-8 h-8 border-2 border-tts-primary border-t-transparent rounded-full animate-spin"></div>
-        </div>
-      ) : error ? (
-        <div className="px-4 py-10 text-center">
-          <p className="text-tts-danger mb-2">Ошибка подключения к базе</p>
-          <p className="text-tts-muted text-sm">{error}</p>
-          <button onClick={() => { setError(null); setLoading(true); loadHomeData(); }}
-            className="mt-4 bg-tts-primary text-white px-6 py-2 rounded-xl">
-            Повторить
-          </button>
-        </div>
-      ) : (
-        <>
-          {panels.map(panel => (
-            <PanelSection key={panel.id} title={panel.название} products={panel.products} type={panel.тип} />
           ))}
+        </div>
 
-          <div className="px-4 mb-6">
-            <div className="bg-tts-card rounded-2xl p-4 text-center">
-              <p className="text-tts-muted text-sm">В каталоге</p>
-              <p className="text-2xl font-bold text-white">{allProducts.length}</p>
-              <p className="text-tts-muted text-sm">товаров</p>
+        {/* Top Demand Panel */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-[12px] font-bold tracking-[2px] uppercase gold-gradient-text">
+              ТОП-СПРОС СЕГОДНЯ
+            </h2>
+            <span
+              onClick={() => navigate('/catalog')}
+              className="text-[9px] text-[var(--text-muted)] tracking-wider cursor-pointer press-effect"
+            >
+              СМОТРЕТЬ ВСЕ →
+            </span>
+          </div>
+
+          {loading ? (
+            <div className="card p-4 flex items-center justify-center h-[140px]">
+              <div className="w-8 h-8 border-2 border-[var(--gold)] border-t-transparent rounded-full animate-spin" />
             </div>
+          ) : currentTop ? (
+            <div className="card p-4 relative">
+              <div className="flex items-center gap-4">
+                {/* Left arrow */}
+                <button onClick={prevTop} className="p-1 press-effect shrink-0">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2">
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                </button>
+
+                {/* Product info */}
+                <div
+                  className="flex items-center gap-3 flex-1 cursor-pointer"
+                  onClick={() => navigate(`/product/${currentTop.id}`)}
+                >
+                  <div className="w-[60px] h-[60px] rounded-xl bg-gradient-to-br from-[#1a1816] to-[#0d0c0a] border border-[var(--border-gold)] flex items-center justify-center text-[28px] shrink-0">
+                    {getFlavorEmoji(currentTop.flavor || currentTop.name)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[8px] text-[var(--text-muted)] tracking-wider">
+                      {currentTop.brand}{currentTop.lineup ? ` • ${currentTop.lineup}` : ''}
+                    </p>
+                    <p className="text-[13px] font-bold text-[var(--gold-light)] truncate mt-0.5">
+                      {currentTop.name}
+                    </p>
+                    <div className="flex gap-2 mt-1">
+                      {currentTop.strength && (
+                        <span className="text-[8px] text-[var(--text-muted)]">⚡{currentTop.strength}</span>
+                      )}
+                      {currentTop.packets && (
+                        <span className="text-[8px] text-[var(--text-muted)]">📦{currentTop.packets}шт</span>
+                      )}
+                    </div>
+                    <p className="text-[16px] font-extrabold text-[var(--gold)] mt-1">
+                      {currentTop.priceCash} ₽
+                    </p>
+                  </div>
+                </div>
+
+                {/* Add to cart */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); addItem(currentTop) }}
+                  className="w-10 h-10 rounded-xl gold-gradient-bg flex items-center justify-center press-effect shadow-md shadow-[rgba(212,175,55,0.3)] shrink-0"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--bg-dark)" strokeWidth="2.5">
+                    <path d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
+
+                {/* Right arrow */}
+                <button onClick={nextTop} className="p-1 press-effect shrink-0">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Dots */}
+              <div className="flex justify-center gap-1.5 mt-3">
+                {topProducts.slice(0, 5).map((_, i) => (
+                  <div
+                    key={i}
+                    className={`w-1.5 h-1.5 rounded-full transition-all ${
+                      i === topIndex % 5 ? 'bg-[var(--gold)] w-4' : 'bg-[var(--border-gold)]'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="card p-4 flex items-center justify-center h-[100px]">
+              <p className="text-[11px] text-[var(--text-muted)]">Нет товаров</p>
+            </div>
+          )}
+        </div>
+
+        {/* Latest Products */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-[12px] font-bold tracking-[2px] uppercase gold-gradient-text">
+              ПОСЛЕДНИЕ НОВИНКИ
+            </h2>
+            <span
+              onClick={() => navigate('/catalog')}
+              className="text-[9px] text-[var(--text-muted)] tracking-wider cursor-pointer press-effect"
+            >
+              СМОТРЕТЬ ВСЕ →
+            </span>
           </div>
 
-          <div className="px-4 mb-6 grid grid-cols-2 gap-3">
-            <button onClick={() => navigate('/catalog')} className="bg-tts-card rounded-2xl p-4 text-left">
-              <div className="w-10 h-10 bg-tts-primary/20 rounded-xl flex items-center justify-center mb-3">
-                <span className="text-xl">🔍</span>
-              </div>
-              <p className="text-white font-medium">Каталог</p>
-              <p className="text-tts-muted text-sm">Весь ассортимент</p>
-            </button>
-            <button onClick={() => navigate('/favorites')} className="bg-tts-card rounded-2xl p-4 text-left">
-              <div className="w-10 h-10 bg-tts-danger/20 rounded-xl flex items-center justify-center mb-3">
-                <span className="text-xl">❤️</span>
-              </div>
-              <p className="text-white font-medium">Избранное</p>
-              <p className="text-tts-muted text-sm">Ваши любимые</p>
-            </button>
-          </div>
-        </>
-      )}
+          {loading ? (
+            <div className="flex gap-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="card p-3 min-w-[140px] h-[160px] animate-pulse" />
+              ))}
+            </div>
+          ) : (
+            <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
+              {newProducts.map((product) => (
+                <div
+                  key={product.id}
+                  className="card p-3 min-w-[140px] flex flex-col items-center gap-2 cursor-pointer press-effect shrink-0"
+                  onClick={() => navigate(`/product/${product.id}`)}
+                >
+                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#1a1816] to-[#0d0c0a] border border-[var(--border-gold)] flex items-center justify-center text-[26px]">
+                    {getFlavorEmoji(product.flavor || product.name)}
+                  </div>
+                  <p className="text-[9px] font-bold text-[var(--gold-light)] text-center leading-tight line-clamp-2">
+                    {product.name}
+                  </p>
+                  <p className="text-[8px] text-[var(--text-muted)]">{product.brand}</p>
+                  <div className="flex items-center gap-2 mt-auto">
+                    <span className="text-[12px] font-extrabold text-[var(--gold)]">{product.priceCash} ₽</span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); addItem(product) }}
+                      className="w-7 h-7 rounded-lg gold-gradient-bg flex items-center justify-center press-effect"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--bg-dark)" strokeWidth="2.5">
+                        <path d="M12 4v16m8-8H4" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
-      <BottomNav />
-    </div>
+        {/* Action Buttons */}
+        <div className="space-y-3 pt-2">
+          <button
+            onClick={() => navigate('/catalog')}
+            className="w-full gold-gradient-bg text-[var(--bg-dark)] font-bold text-[12px] tracking-[2px] py-4 rounded-[14px] press-effect shadow-lg shadow-[rgba(212,175,55,0.2)]"
+          >
+            ВЫБРАТЬ САМОСТОЯТЕЛЬНО
+          </button>
+          <button className="w-full card text-[var(--gold)] font-bold text-[12px] tracking-[2px] py-4 press-effect">
+            ВЫБРАТЬ С ПОМОЩЬЮ ИИ
+          </button>
+        </div>
+      </div>
+    </AppShell>
   )
 }
-
-export default Home

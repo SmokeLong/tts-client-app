@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TTS - Добро пожаловать</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        :root {
+            --gold-light: #f4e4a6; --gold: #d4af37; --gold-dark: #b8860b;
+            --bg-dark: #0a0908; --bg-card: rgba(20, 18, 15, 0.95);
+            --border-gold: rgba(212, 175, 55, 0.3); --text-muted: rgba(212, 175, 55, 0.6);
+            --green: #4ade80;
+        }
+        body { font-family: 'Cinzel', serif; background: var(--bg-dark); min-height: 100vh; color: var(--gold); overflow: hidden; }
+        .app { max-width: 430px; margin: 0 auto; min-height: 100vh; background: url('assets/leather-texture.png') center/cover fixed; position: relative; }
+
+        /* Slides Container */
+        .slides-container { display: flex; width: 400%; transition: transform 0.5s ease; height: 100vh; }
+        .slide { width: 25%; height: 100vh; display: flex; flex-direction: column; padding: 40px 24px 40px; }
+
+        /* Logo */
+        .logo-wrap { display: flex; justify-content: center; align-items: center; padding: 30px 0 20px; }
+        .logo-img { width: 200px; height: 200px; object-fit: contain; animation: logoPulse 4s ease-in-out infinite; filter: drop-shadow(0 0 30px rgba(212,175,55,0.4)); }
+        @keyframes logoPulse {
+            0% { transform: scale(1); filter: drop-shadow(0 0 30px rgba(212,175,55,0.4)); }
+            25% { transform: scale(1.06); filter: drop-shadow(0 0 45px rgba(212,175,55,0.6)); }
+            50% { transform: scale(1); filter: drop-shadow(0 0 25px rgba(212,175,55,0.3)); }
+            75% { transform: scale(1.03); filter: drop-shadow(0 0 35px rgba(212,175,55,0.5)); }
+            100% { transform: scale(1); filter: drop-shadow(0 0 30px rgba(212,175,55,0.4)); }
+        }
+
+        /* Slide Content */
+        .slide-icon { width: 140px; height: 140px; margin: 40px auto; background: linear-gradient(145deg, rgba(30,27,24,1), rgba(15,13,11,1)); border: 2px solid var(--gold); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 70px; box-shadow: 0 0 40px rgba(212,175,55,0.2); }
+        .slide-title { font-size: 22px; font-weight: 800; color: var(--gold-light); text-align: center; letter-spacing: 2px; margin-bottom: 16px; }
+        .slide-tagline { font-size: 13px; font-weight: 700; color: var(--gold-light); text-align: center; line-height: 1.6; margin-bottom: 20px; letter-spacing: 0.5px; }
+        .slide-desc { font-size: 12px; color: var(--text-muted); text-align: center; line-height: 1.6; max-width: 280px; margin: 0 auto; }
+        .slide-features { margin-top: 30px; display: flex; flex-direction: column; gap: 12px; }
+        .feature-item { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: var(--bg-card); border: 1px solid var(--border-gold); border-radius: 12px; }
+        .feature-icon { width: 40px; height: 40px; background: rgba(212,175,55,0.1); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+        .feature-text { flex: 1; }
+        .feature-title { font-size: 11px; font-weight: 700; color: var(--gold-light); }
+        .feature-desc { font-size: 9px; color: var(--text-muted); margin-top: 2px; }
+
+        /* Bottom Controls */
+        .slide-bottom { margin-top: auto; }
+        .dots { display: flex; justify-content: center; gap: 10px; margin-bottom: 24px; }
+        .dot { width: 10px; height: 10px; background: var(--border-gold); border-radius: 50%; cursor: pointer; transition: 0.3s; }
+        .dot.active { background: var(--gold); width: 30px; border-radius: 5px; }
+        .slide-btn { width: 100%; padding: 16px; background: linear-gradient(145deg, var(--gold), var(--gold-dark)); border: none; border-radius: 14px; font-family: inherit; font-size: 13px; font-weight: 700; color: var(--bg-dark); letter-spacing: 2px; cursor: pointer; transition: 0.3s; }
+        .slide-btn:hover { transform: scale(1.02); }
+        .slide-skip { display: block; text-align: center; margin-top: 16px; font-size: 11px; color: var(--text-muted); cursor: pointer; }
+        .slide-skip:hover { color: var(--gold); }
+
+        /* Registration Slide */
+        .reg-form { margin-top: 30px; display: flex; flex-direction: column; gap: 14px; }
+        .reg-field { display: flex; flex-direction: column; gap: 6px; }
+        .reg-label { font-size: 9px; color: var(--text-muted); letter-spacing: 1px; }
+        .reg-input { padding: 14px 16px; background: rgba(212,175,55,0.05); border: 1px solid var(--border-gold); border-radius: 12px; font-family: inherit; font-size: 13px; color: var(--gold-light); outline: none; }
+        .reg-input:focus { border-color: var(--gold); }
+        .reg-input::placeholder { color: var(--text-muted); }
+
+        .age-confirm { display: flex; align-items: flex-start; gap: 12px; padding: 14px; background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.3); border-radius: 12px; margin-top: 10px; }
+        .age-checkbox { width: 24px; height: 24px; background: rgba(212,175,55,0.1); border: 2px solid var(--border-gold); border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: 0.3s; }
+        .age-checkbox.checked { background: var(--gold); border-color: var(--gold); }
+        .age-checkbox.checked::after { content: '✓'; color: var(--bg-dark); font-size: 14px; font-weight: 700; }
+        .age-text { font-size: 10px; color: #f87171; line-height: 1.5; }
+        .age-text strong { display: block; margin-bottom: 4px; }
+
+        /* Slide icon for slides 2-3 */
+    </style>
+</head>
+<body>
+    <div class="app">
+        <div class="slides-container" id="slidesContainer">
+            <!-- Slide 1: Welcome -->
+            <div class="slide">
+                <div class="logo-wrap">
+                    <img src="data:image/jpeg;base64,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" alt="Time To Snus" class="logo-img">
+                </div>
+                <div class="slide-tagline">Надёжное комьюнити с серьёзным подходом к делу</div>
+                <div class="slide-features">
+                    <div class="feature-item">
+                        <div class="feature-icon">👑</div>
+                        <div class="feature-text">
+                            <div class="feature-title">ВЫСОЧАЙШЕЕ КАЧЕСТВО</div>
+                            <div class="feature-desc">Обслуживания и продукции</div>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">📦</div>
+                        <div class="feature-text">
+                            <div class="feature-title">ШИРОКИЙ АССОРТИМЕНТ</div>
+                            <div class="feature-desc">Со стабильным наличием</div>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">🎯</div>
+                        <div class="feature-text">
+                            <div class="feature-title">БЕСПЛАТНЫЙ ПРЕДЗАКАЗ</div>
+                            <div class="feature-desc">Любой шайбы под вас</div>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">⚡</div>
+                        <div class="feature-text">
+                            <div class="feature-title">МАКСИМУМ УДОБСТВА</div>
+                            <div class="feature-desc">Минимум напряжения</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="slide-bottom">
+                    <div class="dots">
+                        <div class="dot active" data-slide="0"></div>
+                        <div class="dot" data-slide="1"></div>
+                        <div class="dot" data-slide="2"></div>
+                        <div class="dot" data-slide="3"></div>
+                    </div>
+                    <button class="slide-btn" onclick="nextSlide()">ДАЛЕЕ</button>
+                    <span class="slide-skip" onclick="goToSlide(3)">Пропустить</span>
+                </div>
+            </div>
+
+            <!-- Slide 2: Discounts -->
+            <div class="slide">
+                <div class="slide-icon">💎</div>
+                <div class="slide-title">СИСТЕМА СКИДОК</div>
+                <div class="slide-desc">Чем больше покупаешь — тем больше экономишь. Накапливай сумму выкупа и получай постоянную скидку</div>
+                <div class="slide-features">
+                    <div class="feature-item">
+                        <div class="feature-icon" style="background: rgba(74,222,128,0.15);">3%</div>
+                        <div class="feature-text">
+                            <div class="feature-title">ОТ 24 000 ₽</div>
+                            <div class="feature-desc">Скидка на все товары</div>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon" style="background: rgba(74,222,128,0.15);">5%</div>
+                        <div class="feature-text">
+                            <div class="feature-title">ОТ 44 000 ₽</div>
+                            <div class="feature-desc">Скидка на все товары</div>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon" style="background: rgba(74,222,128,0.15);">10%</div>
+                        <div class="feature-text">
+                            <div class="feature-title">ОТ 59 000 ₽</div>
+                            <div class="feature-desc">Максимальная скидка</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="slide-bottom">
+                    <div class="dots">
+                        <div class="dot" data-slide="0"></div>
+                        <div class="dot active" data-slide="1"></div>
+                        <div class="dot" data-slide="2"></div>
+                        <div class="dot" data-slide="3"></div>
+                    </div>
+                    <button class="slide-btn" onclick="nextSlide()">ДАЛЕЕ</button>
+                    <span class="slide-skip" onclick="goToSlide(3)">Пропустить</span>
+                </div>
+            </div>
+
+            <!-- Slide 3: Tcoins -->
+            <div class="slide">
+                <div class="slide-icon">🪙</div>
+                <div class="slide-title">ТКОИНЫ</div>
+                <div class="slide-desc">Внутренняя валюта магазина. 1 ткоин = 1 рубль. Копи и трать на покупки</div>
+                <div class="slide-features">
+                    <div class="feature-item">
+                        <div class="feature-icon">🎁</div>
+                        <div class="feature-text">
+                            <div class="feature-title">КЭШБЭК 1.5%</div>
+                            <div class="feature-desc">С каждой покупки</div>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">🎲</div>
+                        <div class="feature-text">
+                            <div class="feature-title">КУБИК УДАЧИ</div>
+                            <div class="feature-desc">Выиграй скидку 15% или 50%</div>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">👥</div>
+                        <div class="feature-text">
+                            <div class="feature-title">ПРИГЛАШАЙ ДРУЗЕЙ</div>
+                            <div class="feature-desc">+100 ткоинов за каждого</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="slide-bottom">
+                    <div class="dots">
+                        <div class="dot" data-slide="0"></div>
+                        <div class="dot" data-slide="1"></div>
+                        <div class="dot active" data-slide="2"></div>
+                        <div class="dot" data-slide="3"></div>
+                    </div>
+                    <button class="slide-btn" onclick="nextSlide()">ДАЛЕЕ</button>
+                    <span class="slide-skip" onclick="goToSlide(3)">Пропустить</span>
+                </div>
+            </div>
+
+            <!-- Slide 4: Registration -->
+            <div class="slide">
+                <div class="slide-title" style="margin-top: 20px;">РЕГИСТРАЦИЯ</div>
+                <div class="slide-desc">Укажи данные для персональных скидок и бонусов</div>
+                <div class="reg-form">
+                    <div class="reg-field">
+                        <span class="reg-label">ИМЯ</span>
+                        <input type="text" class="reg-input" placeholder="Как тебя зовут?">
+                    </div>
+                    <div class="reg-field">
+                        <span class="reg-label">ДАТА РОЖДЕНИЯ</span>
+                        <input type="text" class="reg-input" placeholder="ДД.ММ.ГГГГ">
+                    </div>
+                    <div class="age-confirm">
+                        <div class="age-checkbox" id="ageCheck" onclick="toggleAge()"></div>
+                        <div class="age-text">
+                            <strong>Подтверждаю, что мне есть 18 лет</strong>
+                            Продажа никотиносодержащей продукции лицам младше 18 лет запрещена
+                        </div>
+                    </div>
+                </div>
+                <div class="slide-bottom">
+                    <div class="dots">
+                        <div class="dot" data-slide="0"></div>
+                        <div class="dot" data-slide="1"></div>
+                        <div class="dot" data-slide="2"></div>
+                        <div class="dot active" data-slide="3"></div>
+                    </div>
+                    <button class="slide-btn" id="startBtn" style="opacity: 0.5; pointer-events: none;">НАЧАТЬ</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentSlide = 0;
+        const container = document.getElementById('slidesContainer');
+        const dots = document.querySelectorAll('.dot');
+
+        function goToSlide(n) {
+            currentSlide = n;
+            container.style.transform = `translateX(-${n * 25}%)`;
+            dots.forEach((dot, i) => dot.classList.toggle('active', i === n));
+        }
+
+        function nextSlide() {
+            if (currentSlide < 3) {
+                goToSlide(currentSlide + 1);
+            }
+        }
+
+        dots.forEach(dot => {
+            dot.addEventListener('click', () => {
+                goToSlide(parseInt(dot.dataset.slide));
+            });
+        });
+
+        function toggleAge() {
+            const check = document.getElementById('ageCheck');
+            const btn = document.getElementById('startBtn');
+            check.classList.toggle('checked');
+            if (check.classList.contains('checked')) {
+                btn.style.opacity = '1';
+                btn.style.pointerEvents = 'auto';
+            } else {
+                btn.style.opacity = '0.5';
+                btn.style.pointerEvents = 'none';
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TTS - Корзина</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        :root {
+            --gold-light: #f4e4a6; --gold: #d4af37; --gold-dark: #b8860b;
+            --bg-dark: #0a0908; --bg-card: rgba(20, 18, 15, 0.95);
+            --border-gold: rgba(212, 175, 55, 0.3); --text-muted: rgba(212, 175, 55, 0.6);
+            --green: #4ade80; --yellow: #fbbf24; --red: #f87171;
+        }
+        body { font-family: 'Cinzel', serif; background: var(--bg-dark); min-height: 100vh; color: var(--gold); }
+        .app { max-width: 430px; margin: 0 auto; min-height: 100vh; background: url('assets/leather-texture.png') center/cover fixed; position: relative; }
+        .content { padding-bottom: 200px; }
+
+        /* Header */
+        .header { padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-gold); background: rgba(10,9,8,0.95); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 100; }
+        .back { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+        .back svg { width: 22px; height: 22px; stroke: var(--gold); fill: none; stroke-width: 2; }
+        .title { font-size: 16px; font-weight: 800; letter-spacing: 2px; color: var(--gold-light); }
+        .clear { font-size: 10px; color: var(--red); cursor: pointer; }
+
+        /* Section */
+        .section { padding: 14px 16px; }
+        .section-title { font-size: 11px; font-weight: 700; color: var(--gold); letter-spacing: 1.5px; margin-bottom: 12px; }
+        .divider { height: 1px; background: linear-gradient(90deg, transparent, var(--border-gold), transparent); margin: 0 16px; }
+
+        /* Toggle */
+        .toggle { display: flex; background: var(--bg-card); border: 1px solid var(--border-gold); border-radius: 10px; padding: 3px; margin-bottom: 14px; }
+        .toggle-btn { flex: 1; padding: 10px; background: transparent; border: none; border-radius: 8px; font-family: inherit; font-size: 10px; font-weight: 700; color: var(--text-muted); letter-spacing: 1px; cursor: pointer; transition: 0.3s; }
+        .toggle-btn.active { background: linear-gradient(145deg, var(--gold), var(--gold-dark)); color: var(--bg-dark); }
+
+        /* Cart Item */
+        .cart-item { background: var(--bg-card); border: 1px solid var(--border-gold); border-radius: 12px; padding: 12px; margin-bottom: 10px; display: flex; gap: 12px; position: relative; }
+        .item-img { width: 55px; height: 55px; background: linear-gradient(145deg, #1a1816, #0d0c0a); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 28px; flex-shrink: 0; }
+        .item-info { flex: 1; min-width: 0; }
+        .item-brand { font-size: 8px; color: var(--text-muted); letter-spacing: 1px; }
+        .item-name { font-size: 12px; font-weight: 700; color: var(--gold-light); margin: 2px 0 6px; }
+        .item-bottom { display: flex; justify-content: space-between; align-items: center; }
+        .item-price { font-size: 14px; font-weight: 800; color: var(--gold); }
+        .item-controls { display: flex; align-items: center; gap: 8px; }
+        .item-pay { display: none; background: rgba(212,175,55,0.1); border: 1px solid var(--border-gold); border-radius: 6px; padding: 2px; }
+        .item-pay.show { display: flex; }
+        .pay-btn { width: 26px; height: 24px; background: transparent; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; }
+        .pay-btn.active { background: linear-gradient(145deg, var(--gold), var(--gold-dark)); }
+        .qty { display: flex; align-items: center; background: rgba(212,175,55,0.1); border: 1px solid var(--border-gold); border-radius: 6px; padding: 2px; }
+        .qty-btn { width: 26px; height: 24px; background: transparent; border: none; border-radius: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .qty-btn svg { width: 12px; height: 12px; stroke: var(--gold); fill: none; stroke-width: 2; }
+        .qty-val { width: 24px; text-align: center; font-size: 12px; font-weight: 700; color: var(--gold-light); }
+        .item-delete { position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.3); border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .item-delete svg { width: 12px; height: 12px; stroke: var(--red); fill: none; stroke-width: 2; }
+
+        /* Stock Warning */
+        .stock-warn { background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); border-radius: 8px; padding: 8px 10px; margin-top: 8px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .stock-warn-text { font-size: 9px; color: var(--yellow); }
+        .stock-warn-text strong { color: var(--red); }
+        .replace-btn { padding: 6px 10px; background: rgba(251,191,36,0.2); border: 1px solid var(--yellow); border-radius: 6px; font-family: inherit; font-size: 8px; font-weight: 700; color: var(--yellow); cursor: pointer; white-space: nowrap; }
+
+        /* Location */
+        .loc-card { padding: 12px; background: var(--bg-card); border: 1px solid var(--border-gold); border-radius: 10px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: 0.3s; }
+        .loc-card:hover, .loc-card.active { border-color: var(--gold); background: rgba(212,175,55,0.08); }
+        .loc-radio { width: 18px; height: 18px; border: 2px solid var(--border-gold); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .loc-card.active .loc-radio { border-color: var(--gold); }
+        .loc-radio::after { content: ''; width: 8px; height: 8px; background: var(--gold); border-radius: 50%; opacity: 0; }
+        .loc-card.active .loc-radio::after { opacity: 1; }
+        .loc-info { flex: 1; }
+        .loc-name { font-size: 11px; font-weight: 700; color: var(--gold-light); }
+        .loc-addr { font-size: 9px; color: var(--text-muted); margin-top: 1px; }
+        .loc-hours { font-size: 9px; color: var(--gold); margin-top: 3px; }
+        .loc-stock { font-size: 10px; font-weight: 700; }
+        .loc-stock.green { color: var(--green); }
+        .loc-stock.yellow { color: var(--yellow); }
+
+        /* Time Slots */
+        .time-slots { display: flex; flex-wrap: wrap; gap: 6px; }
+        .time-slot { padding: 8px 12px; background: var(--bg-card); border: 1px solid var(--border-gold); border-radius: 8px; font-size: 10px; color: var(--text-muted); cursor: pointer; transition: 0.3s; }
+        .time-slot:hover, .time-slot.active { background: linear-gradient(145deg, var(--gold), var(--gold-dark)); border-color: var(--gold); color: var(--bg-dark); font-weight: 700; }
+        .time-slot.disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* Payment */
+        .pay-option { padding: 12px; background: var(--bg-card); border: 1px solid var(--border-gold); border-radius: 10px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; cursor: pointer; transition: 0.3s; }
+        .pay-option:hover, .pay-option.active { border-color: var(--gold); background: rgba(212,175,55,0.08); }
+        .pay-icon { font-size: 18px; }
+        .pay-info { flex: 1; }
+        .pay-title { font-size: 11px; font-weight: 700; color: var(--gold-light); }
+        .pay-desc { font-size: 9px; color: var(--text-muted); }
+        .pay-desc.green { color: var(--green); }
+        .pay-price { font-size: 13px; font-weight: 800; }
+        .pay-price.green { color: var(--green); }
+
+        /* Tcoins */
+        .tcoins-row { display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--bg-card); border: 1px solid var(--border-gold); border-radius: 10px; }
+        .tcoin-icon { font-size: 24px; }
+        .tcoin-input-wrap { flex: 1; display: flex; align-items: center; gap: 6px; }
+        .tcoin-input { width: 60px; padding: 8px; background: rgba(212,175,55,0.1); border: 1px solid var(--border-gold); border-radius: 6px; font-family: inherit; font-size: 14px; font-weight: 700; color: var(--gold-light); text-align: center; outline: none; }
+        .tcoin-avail { font-size: 10px; color: var(--text-muted); }
+        .tcoin-max { padding: 8px 12px; background: rgba(212,175,55,0.1); border: 1px solid var(--border-gold); border-radius: 6px; font-family: inherit; font-size: 9px; font-weight: 700; color: var(--gold); cursor: pointer; }
+
+        /* Cashback */
+        .cashback { padding: 10px 12px; background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.3); border-radius: 8px; margin-top: 10px; display: flex; align-items: center; gap: 10px; }
+        .cashback.warn { background: rgba(251,191,36,0.1); border-color: rgba(251,191,36,0.3); }
+        .cashback-icon { font-size: 18px; }
+        .cashback-text { font-size: 10px; color: var(--green); }
+        .cashback.warn .cashback-text { color: var(--yellow); }
+
+        /* Document Warning */
+        .doc-warn { padding: 12px; background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.25); border-radius: 10px; display: flex; align-items: flex-start; gap: 10px; }
+        .doc-warn svg { width: 20px; height: 20px; stroke: var(--yellow); fill: none; flex-shrink: 0; }
+        .doc-warn-text { font-size: 10px; color: var(--yellow); line-height: 1.4; }
+        .doc-warn-text strong { display: block; margin-bottom: 2px; }
+
+        /* Bottom Bar */
+        .bottom { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; padding: 12px 16px 24px; background: linear-gradient(180deg, rgba(10,9,8,0.98), rgba(5,4,3,1)); border-top: 1px solid var(--border-gold); z-index: 100; }
+        .summary { margin-bottom: 12px; }
+        .sum-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; }
+        .sum-label { font-size: 10px; color: var(--text-muted); }
+        .sum-value { font-size: 11px; font-weight: 700; color: var(--gold); }
+        .sum-value.green { color: var(--green); }
+        .sum-row.total { padding-top: 8px; margin-top: 6px; border-top: 1px solid var(--border-gold); }
+        .sum-row.total .sum-label { font-size: 12px; color: var(--gold); }
+        .sum-row.total .sum-value { font-size: 18px; color: var(--gold-light); }
+        .checkout-btn { width: 100%; padding: 14px; background: linear-gradient(145deg, var(--gold), var(--gold-dark)); border: none; border-radius: 12px; font-family: inherit; font-size: 12px; font-weight: 700; color: var(--bg-dark); letter-spacing: 2px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <div class="content">
+            <!-- Header -->
+            <header class="header">
+                <div class="back"><svg viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg></div>
+                <span class="title">КОРЗИНА</span>
+                <span class="clear">ОЧИСТИТЬ</span>
+            </header>
+
+            <!-- Order Type -->
+            <div class="section">
+                <div class="toggle">
+                    <button class="toggle-btn active" id="orderBtn">ЗАКАЗ</button>
+                    <button class="toggle-btn" id="preorderBtn">ПРЕДЗАКАЗ</button>
+                </div>
+
+                <!-- Cart Items -->
+                <div class="section-title">ТОВАРЫ (4 шт)</div>
+                
+                <div class="cart-item">
+                    <div class="item-img">🌿</div>
+                    <div class="item-info">
+                        <div class="item-brand">FEDRS • ICE COOL</div>
+                        <div class="item-name">Mint Hard</div>
+                        <div class="item-bottom">
+                            <div class="item-price">1 300 ₽</div>
+                            <div class="item-controls">
+                                <div class="item-pay" id="itemPay1"><button class="pay-btn active">💵</button><button class="pay-btn">💳</button></div>
+                                <div class="qty"><button class="qty-btn"><svg viewBox="0 0 24 24"><path d="M20 12H4"/></svg></button><span class="qty-val">2</span><button class="qty-btn"><svg viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg></button></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item-delete"><svg viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg></div>
+                </div>
+
+                <div class="cart-item">
+                    <div class="item-img">🍇</div>
+                    <div class="item-info">
+                        <div class="item-brand">ICEBERG</div>
+                        <div class="item-name">Grape XXL Strong</div>
+                        <div class="item-bottom">
+                            <div class="item-price">780 ₽</div>
+                            <div class="item-controls">
+                                <div class="item-pay" id="itemPay2"><button class="pay-btn active">💵</button><button class="pay-btn">💳</button></div>
+                                <div class="qty"><button class="qty-btn"><svg viewBox="0 0 24 24"><path d="M20 12H4"/></svg></button><span class="qty-val">2</span><button class="qty-btn"><svg viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg></button></div>
+                            </div>
+                        </div>
+                        <!-- Stock warning when location has partial -->
+                        <div class="stock-warn" id="stockWarn1" style="display:none;">
+                            <span class="stock-warn-text">В наличии только: <strong>1 шт</strong> · Недостаточно 1</span>
+                            <button class="replace-btn">ЗАМЕНИТЬ</button>
+                        </div>
+                    </div>
+                    <div class="item-delete"><svg viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg></div>
+                </div>
+
+                <div class="cart-item">
+                    <div class="item-img">🔴</div>
+                    <div class="item-info">
+                        <div class="item-brand">SIBERIA</div>
+                        <div class="item-name">Red Extremely Strong</div>
+                        <div class="item-bottom">
+                            <div class="item-price">890 ₽</div>
+                            <div class="item-controls">
+                                <div class="item-pay" id="itemPay3"><button class="pay-btn active">💵</button><button class="pay-btn">💳</button></div>
+                                <div class="qty"><button class="qty-btn"><svg viewBox="0 0 24 24"><path d="M20 12H4"/></svg></button><span class="qty-val">1</span><button class="qty-btn"><svg viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg></button></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item-delete"><svg viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg></div>
+                </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- Delivery Method -->
+            <div class="section">
+                <div class="toggle">
+                    <button class="toggle-btn active" id="pickupBtn">🏪 САМОВЫВОЗ</button>
+                    <button class="toggle-btn" id="deliveryBtn">🚗 ДОСТАВКА</button>
+                </div>
+
+                <!-- Locations -->
+                <div id="pickupSection">
+                    <div class="loc-card active" data-loc="center">
+                        <div class="loc-radio"></div>
+                        <div class="loc-info">
+                            <div class="loc-name">ЦЕНТР</div>
+                            <div class="loc-addr">Куколкина 9</div>
+                            <div class="loc-hours">🕐 10:00 - 22:00</div>
+                        </div>
+                        <div class="loc-stock green">Всё есть</div>
+                    </div>
+                    <div class="loc-card" data-loc="north">
+                        <div class="loc-radio"></div>
+                        <div class="loc-info">
+                            <div class="loc-name">СЕВЕРНЫЙ</div>
+                            <div class="loc-addr">Бульвар Победы 9</div>
+                            <div class="loc-hours">🕐 12:00 - 23:00</div>
+                        </div>
+                        <div class="loc-stock yellow">Частично</div>
+                    </div>
+                    <div class="loc-card" data-loc="lb">
+                        <div class="loc-radio"></div>
+                        <div class="loc-info">
+                            <div class="loc-name">ЛБ</div>
+                            <div class="loc-addr">Ленинский пр-кт 117</div>
+                            <div class="loc-hours">🕐 11:00 - 22:00</div>
+                        </div>
+                        <div class="loc-stock green">Всё есть</div>
+                    </div>
+                </div>
+
+                <!-- Delivery Address (hidden by default) -->
+                <div id="deliverySection" style="display:none;">
+                    <input type="text" class="tcoin-input" style="width:100%;margin-bottom:8px;" placeholder="Адрес доставки...">
+                    <input type="text" class="tcoin-input" style="width:100%;" placeholder="Подъезд, этаж, домофон...">
+                </div>
+            </div>
+
+            <!-- Preorder Time (hidden by default) -->
+            <div class="section" id="preorderSection" style="display:none;">
+                <div class="section-title">ВРЕМЯ ПОЛУЧЕНИЯ</div>
+                <div class="time-slots" id="timeSlots">
+                    <div class="time-slot disabled">10:00-12:00</div>
+                    <div class="time-slot active">12:00-14:00</div>
+                    <div class="time-slot">14:00-16:00</div>
+                    <div class="time-slot">16:00-18:00</div>
+                    <div class="time-slot">18:00-20:00</div>
+                    <div class="time-slot">20:00-22:00</div>
+                </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- Payment -->
+            <div class="section">
+                <div class="section-title">ОПЛАТА</div>
+                <div class="pay-option active" data-pay="cash">
+                    <span class="pay-icon">💵</span>
+                    <div class="pay-info">
+                        <div class="pay-title">НАЛИЧНЫЕ</div>
+                        <div class="pay-desc green">Выгода -150 ₽</div>
+                    </div>
+                    <div class="pay-price green">2 820 ₽</div>
+                </div>
+                <div class="pay-option" data-pay="card">
+                    <span class="pay-icon">💳</span>
+                    <div class="pay-info">
+                        <div class="pay-title">БЕЗНАЛИЧНЫЙ</div>
+                        <div class="pay-desc">Перевод на карту</div>
+                    </div>
+                    <div class="pay-price">2 970 ₽</div>
+                </div>
+                <div class="pay-option" data-pay="mixed">
+                    <span class="pay-icon">💵💳</span>
+                    <div class="pay-info">
+                        <div class="pay-title">СМЕШАННЫЙ</div>
+                        <div class="pay-desc">Выбор для каждого товара</div>
+                    </div>
+                    <div class="pay-price">от 2 820 ₽</div>
+                </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- Tcoins -->
+            <div class="section">
+                <div class="section-title">СПИСАТЬ ТКОИНЫ</div>
+                <div class="tcoins-row">
+                    <span class="tcoin-icon">🪙</span>
+                    <div class="tcoin-input-wrap">
+                        <input type="number" class="tcoin-input" id="tcoinInput" value="0" min="0" max="340">
+                        <span class="tcoin-avail">из 340 доступно</span>
+                    </div>
+                    <button class="tcoin-max" id="tcoinMax">МАКС</button>
+                </div>
+                <div class="cashback" id="cashbackBlock">
+                    <span class="cashback-icon">🎁</span>
+                    <span class="cashback-text">Начислим +42 ткоина за покупку (1.5%)</span>
+                </div>
+                <div class="cashback warn" id="cashbackWarn" style="display:none;">
+                    <span class="cashback-icon">⚠️</span>
+                    <span class="cashback-text">При списании ткоинов кэшбэк не начисляется</span>
+                </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- Document Warning -->
+            <div class="section">
+                <div class="doc-warn">
+                    <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    <div class="doc-warn-text">
+                        <strong>При получении предъявите паспорт</strong>
+                        Для подтверждения возраста 18+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Bar -->
+        <div class="bottom">
+            <div class="summary">
+                <div class="sum-row">
+                    <span class="sum-label">Товары (5 шт)</span>
+                    <span class="sum-value">2 970 ₽</span>
+                </div>
+                <div class="sum-row">
+                    <span class="sum-label">Скидка за объём LVL2 (5 шт)</span>
+                    <span class="sum-value green">-150 ₽</span>
+                </div>
+                <div class="sum-row">
+                    <span class="sum-label">Выгода за оплату нал.</span>
+                    <span class="sum-value green">-150 ₽</span>
+                </div>
+                <div class="sum-row" id="tcoinRow" style="display:none;">
+                    <span class="sum-label">Списание ткоинов</span>
+                    <span class="sum-value green" id="tcoinRowVal">-0 ₽</span>
+                </div>
+                <div class="sum-row total">
+                    <span class="sum-label">ИТОГО</span>
+                    <span class="sum-value" id="totalVal">2 670 ₽</span>
+                </div>
+            </div>
+            <button class="checkout-btn" id="checkoutBtn">ОФОРМИТЬ ЗАКАЗ</button>
+        </div>
+    </div>
+
+    <script>
+        // Location selection & time slots
+        const locations = {
+            center: { hours: [10,22], slots: ['10:00-12:00','12:00-14:00','14:00-16:00','16:00-18:00','18:00-20:00','20:00-22:00'] },
+            north: { hours: [12,23], slots: ['12:00-14:00','14:00-16:00','16:00-18:00','18:00-20:00','20:00-22:00','22:00-23:00'] },
+            lb: { hours: [11,22], slots: ['11:00-13:00','13:00-15:00','15:00-17:00','17:00-19:00','19:00-21:00','21:00-22:00'] }
+        };
+        
+        const locCards = document.querySelectorAll('.loc-card');
+        const timeSlotsEl = document.getElementById('timeSlots');
+        const stockWarn = document.getElementById('stockWarn1');
+        
+        locCards.forEach(card => {
+            card.addEventListener('click', () => {
+                locCards.forEach(c => c.classList.remove('active'));
+                card.classList.add('active');
+                const loc = card.dataset.loc;
+                updateTimeSlots(loc);
+                // Show stock warning for north location
+                stockWarn.style.display = loc === 'north' ? 'flex' : 'none';
+            });
+        });
+
+        function updateTimeSlots(loc) {
+            const slots = locations[loc].slots;
+            timeSlotsEl.innerHTML = slots.map((s, i) => 
+                `<div class="time-slot${i===0?' active':''}">${s}</div>`
+            ).join('');
+            // Re-bind click
+            timeSlotsEl.querySelectorAll('.time-slot').forEach(slot => {
+                slot.addEventListener('click', () => {
+                    timeSlotsEl.querySelectorAll('.time-slot').forEach(s => s.classList.remove('active'));
+                    slot.classList.add('active');
+                });
+            });
+        }
+
+        // Order type toggle
+        const orderBtn = document.getElementById('orderBtn');
+        const preorderBtn = document.getElementById('preorderBtn');
+        const preorderSection = document.getElementById('preorderSection');
+        const checkoutBtn = document.getElementById('checkoutBtn');
+
+        orderBtn.addEventListener('click', () => {
+            orderBtn.classList.add('active');
+            preorderBtn.classList.remove('active');
+            preorderSection.style.display = 'none';
+            checkoutBtn.textContent = 'ОФОРМИТЬ ЗАКАЗ';
+        });
+        preorderBtn.addEventListener('click', () => {
+            preorderBtn.classList.add('active');
+            orderBtn.classList.remove('active');
+            preorderSection.style.display = 'block';
+            checkoutBtn.textContent = 'ОФОРМИТЬ ПРЕДЗАКАЗ';
+        });
+
+        // Pickup/Delivery toggle
+        const pickupBtn = document.getElementById('pickupBtn');
+        const deliveryBtn = document.getElementById('deliveryBtn');
+        const pickupSection = document.getElementById('pickupSection');
+        const deliverySection = document.getElementById('deliverySection');
+
+        pickupBtn.addEventListener('click', () => {
+            pickupBtn.classList.add('active');
+            deliveryBtn.classList.remove('active');
+            pickupSection.style.display = 'block';
+            deliverySection.style.display = 'none';
+        });
+        deliveryBtn.addEventListener('click', () => {
+            deliveryBtn.classList.add('active');
+            pickupBtn.classList.remove('active');
+            pickupSection.style.display = 'none';
+            deliverySection.style.display = 'block';
+        });
+
+        // Payment selection
+        const payOptions = document.querySelectorAll('.pay-option');
+        const itemPays = document.querySelectorAll('.item-pay');
+
+        payOptions.forEach(opt => {
+            opt.addEventListener('click', () => {
+                payOptions.forEach(o => o.classList.remove('active'));
+                opt.classList.add('active');
+                // Show item toggles for mixed
+                const isMixed = opt.dataset.pay === 'mixed';
+                itemPays.forEach(ip => ip.classList.toggle('show', isMixed));
+            });
+        });
+
+        // Tcoins
+        const tcoinInput = document.getElementById('tcoinInput');
+        const tcoinMax = document.getElementById('tcoinMax');
+        const tcoinRow = document.getElementById('tcoinRow');
+        const tcoinRowVal = document.getElementById('tcoinRowVal');
+        const cashbackBlock = document.getElementById('cashbackBlock');
+        const cashbackWarn = document.getElementById('cashbackWarn');
+        const totalVal = document.getElementById('totalVal');
+        const baseTotal = 2670;
+
+        function updateTcoins() {
+            const val = Math.min(340, Math.max(0, parseInt(tcoinInput.value) || 0));
+            tcoinInput.value = val;
+            if (val > 0) {
+                tcoinRow.style.display = 'flex';
+                tcoinRowVal.textContent = '-' + val + ' ₽';
+                cashbackBlock.style.display = 'none';
+                cashbackWarn.style.display = 'flex';
+            } else {
+                tcoinRow.style.display = 'none';
+                cashbackBlock.style.display = 'flex';
+                cashbackWarn.style.display = 'none';
+            }
+            totalVal.textContent = (baseTotal - val) + ' ₽';
+        }
+
+        tcoinInput.addEventListener('input', updateTcoins);
+        tcoinMax.addEventListener('click', () => { tcoinInput.value = 340; updateTcoins(); });
+
+        // Item pay buttons
+        document.querySelectorAll('.pay-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const wrap = e.target.closest('.item-pay');
+                wrap.querySelectorAll('.pay-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+            });
+        });
+
+        // Time slot clicks
+        document.querySelectorAll('.time-slot').forEach(slot => {
+            slot.addEventListener('click', () => {
+                document.querySelectorAll('.time-slot').forEach(s => s.classList.remove('active'));
+                slot.classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>

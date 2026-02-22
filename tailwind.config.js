@@ -6,17 +6,36 @@ module.exports = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        cinzel: ['Cinzel', 'serif'],
+      },
       colors: {
-        'tts-primary': '#6366f1',
-        'tts-secondary': '#8b5cf6',
-        'tts-dark': '#1e1e2e',
-        'tts-card': '#2a2a3e',
-        'tts-text': '#ffffff',
-        'tts-muted': '#a1a1aa',
-        'tts-success': '#22c55e',
-        'tts-warning': '#f59e0b',
-        'tts-danger': '#ef4444',
-      }
+        gold: {
+          light: '#f4e4a6',
+          DEFAULT: '#d4af37',
+          dark: '#b8860b',
+          darker: '#8b6914',
+        },
+        bg: {
+          dark: '#0a0908',
+          card: 'rgba(20, 18, 15, 0.95)',
+        },
+        border: {
+          gold: 'rgba(212, 175, 55, 0.3)',
+        },
+        status: {
+          green: '#4ade80',
+          yellow: '#fbbf24',
+          red: '#f87171',
+          blue: '#60a5fa',
+        },
+      },
+      maxWidth: {
+        app: '430px',
+      },
+      borderRadius: {
+        card: '14px',
+      },
     },
   },
   plugins: [],

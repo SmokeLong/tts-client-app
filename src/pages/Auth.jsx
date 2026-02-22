@@ -1,517 +1,346 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useApp } from '../context/AppContext'
+import { useAuthStore } from '../stores/authStore'
 
-// SHA-256 хеш
 async function hashPassword(password) {
   const encoder = new TextEncoder()
   const data = encoder.encode(password)
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
-  const hashArray = Array.from(new Uint8Array(hashBuffer))
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+  const hash = await crypto.subtle.digest('SHA-256', data)
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
-const API = window.location.hostname === 'localhost' ? '' : ''
+function formatPhone(value) {
+  const digits = value.replace(/\D/g, '')
+  if (digits.length <= 1) return '+7'
+  const rest = digits.startsWith('7') ? digits.slice(1) : digits.startsWith('8') ? digits.slice(1) : digits
+  let result = '+7'
+  if (rest.length > 0) result += ' (' + rest.slice(0, 3)
+  if (rest.length >= 3) result += ') '
+  if (rest.length > 3) result += rest.slice(3, 6)
+  if (rest.length > 6) result += '-' + rest.slice(6, 8)
+  if (rest.length > 8) result += '-' + rest.slice(8, 10)
+  return result
+}
 
-function Auth() {
-  const navigate = useNavigate()
-  const { setClient } = useApp()
-
-  // Режимы: login, register-tg, register-phone, register-sms, register-credentials, recovery, recovery-sms, recovery-pass
+// Modes: login, register-phone, register-sms, register-credentials, recovery, recovery-sms, recovery-pass
+export default function Auth() {
   const [mode, setMode] = useState('login')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-
-  // Поля
   const [login, setLogin] = useState('')
   const [password, setPassword] = useState('')
-  const [phone, setPhone] = useState('')
+  const [phone, setPhone] = useState('+7')
   const [smsCode, setSmsCode] = useState('')
   const [newLogin, setNewLogin] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [newPasswordRepeat, setNewPasswordRepeat] = useState('')
-  const [tgData, setTgData] = useState(null)
+  const [name, setName] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
   const [countdown, setCountdown] = useState(0)
+  const navigate = useNavigate()
+  const setAuth = useAuthStore((s) => s.setAuth)
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
 
-  // Таймер SMS
   useEffect(() => {
-    if (countdown > 0) {
-      const t = setTimeout(() => setCountdown(c => c - 1), 1000)
-      return () => clearTimeout(t)
-    }
+    if (isAuthenticated) navigate('/', { replace: true })
+  }, [isAuthenticated, navigate])
+
+  // Countdown timer for SMS resend
+  useEffect(() => {
+    if (countdown <= 0) return
+    const t = setTimeout(() => setCountdown(countdown - 1), 1000)
+    return () => clearTimeout(t)
   }, [countdown])
 
-  // Telegram Login callback
-  const handleTelegramAuth = useCallback((user) => {
-    setTgData(user)
-    setMode('register-phone')
-    setError('')
-  }, [])
+  const resetError = useCallback(() => setError(''), [])
 
-  // Подключаем Telegram виджет
-  useEffect(() => {
-    if (mode === 'register-tg') {
-      window.onTelegramAuth = handleTelegramAuth
-      const container = document.getElementById('tg-login')
-      if (container) {
-        container.innerHTML = ''
-        const script = document.createElement('script')
-        script.src = 'https://telegram.org/js/telegram-widget.js?22'
-        script.setAttribute('data-telegram-login', 'TTS_SHOP_BOT')
-        script.setAttribute('data-size', 'large')
-        script.setAttribute('data-radius', '12')
-        script.setAttribute('data-onauth', 'onTelegramAuth(user)')
-        script.setAttribute('data-request-access', 'write')
-        script.async = true
-        container.appendChild(script)
-      }
-    }
-  }, [mode, handleTelegramAuth])
-
-  // === ЛОГИН ===
-  const handleLogin = async () => {
-    if (!login || !password) { setError('Заполните все поля'); return }
-    setLoading(true); setError('')
+  // --- LOGIN ---
+  async function handleLogin(e) {
+    e.preventDefault()
+    if (!login || !password) return setError('Заполните все поля')
+    setLoading(true)
+    resetError()
     try {
-      const hash = await hashPassword(password)
-      const res = await fetch(API + '/api/login', {
+      const passHash = await hashPassword(password)
+      const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ логин: login, пароль_хеш: hash })
+        body: JSON.stringify({ логин: login, пароль_хеш: passHash }),
       })
       const data = await res.json()
-      if (data.success) {
-        setClient(data.client)
-        localStorage.setItem('tts_client_data', JSON.stringify(data.client))
-        localStorage.setItem('tts_auth_token', JSON.stringify({ login, hash, clientId: data.client.id }))
-        navigate('/')
-      } else {
-        setError(data.error || 'Неверный логин или пароль')
-      }
+      if (!res.ok) throw new Error(data.error || 'Ошибка входа')
+      setAuth('session_' + Date.now(), data.client)
+      navigate('/')
     } catch (err) {
-      setError('Ошибка соединения')
+      setError(err.message)
     } finally {
       setLoading(false)
     }
   }
 
-  // === SMS ===
-  const sendSms = async (targetPhone) => {
-    const ph = targetPhone || phone
-    if (!ph || ph.replace(/\D/g, '').length < 11) { setError('Введите корректный номер'); return }
-    setLoading(true); setError('')
+  // --- SEND SMS ---
+  async function handleSendSms() {
+    const digits = phone.replace(/\D/g, '')
+    if (digits.length < 11) return setError('Введите корректный номер')
+    setLoading(true)
+    resetError()
     try {
-      const res = await fetch(API + '/api/send-sms', {
+      const res = await fetch('/api/send-sms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ телефон: ph.replace(/\D/g, '') })
+        body: JSON.stringify({ телефон: digits }),
       })
       const data = await res.json()
-      if (data.success) {
-        if (mode === 'register-phone') setMode('register-sms')
-        else if (mode === 'recovery') setMode('recovery-sms')
-        setCountdown(60)
-      } else {
-        setError(data.error || 'Ошибка отправки')
-      }
+      if (!res.ok) throw new Error(data.error || 'Ошибка отправки')
+      setCountdown(60)
+      setMode(mode === 'recovery' ? 'recovery-sms' : 'register-sms')
     } catch (err) {
-      setError('Ошибка соединения')
+      setError(err.message)
     } finally {
       setLoading(false)
     }
   }
 
-  const verifySms = async () => {
-    if (!smsCode || smsCode.length < 4) { setError('Введите 4-значный код'); return }
-    setLoading(true); setError('')
+  // --- VERIFY SMS ---
+  async function handleVerifySms() {
+    if (smsCode.length !== 4) return setError('Введите 4-значный код')
+    const digits = phone.replace(/\D/g, '')
+    setLoading(true)
+    resetError()
     try {
-      const res = await fetch(API + '/api/verify-sms', {
+      const res = await fetch('/api/verify-sms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ телефон: phone.replace(/\D/g, ''), код: smsCode })
+        body: JSON.stringify({ телефон: digits, код: smsCode }),
       })
       const data = await res.json()
-      if (data.success) {
-        if (mode === 'register-sms') setMode('register-credentials')
-        else if (mode === 'recovery-sms') setMode('recovery-pass')
-        setError('')
-      } else {
-        setError(data.error || 'Неверный код')
-      }
+      if (!res.ok) throw new Error(data.error || 'Неверный код')
+      setMode(mode === 'recovery-sms' ? 'recovery-pass' : 'register-credentials')
     } catch (err) {
-      setError('Ошибка соединения')
+      setError(err.message)
     } finally {
       setLoading(false)
     }
   }
 
-  // === РЕГИСТРАЦИЯ: создание логина/пароля ===
-  const handleRegister = async () => {
-    if (!newLogin || !newPassword) { setError('Заполните все поля'); return }
-    if (newLogin.length < 3) { setError('Логин минимум 3 символа'); return }
-    if (newPassword.length < 4) { setError('Пароль минимум 4 символа'); return }
-    if (newPassword !== newPasswordRepeat) { setError('Пароли не совпадают'); return }
-    setLoading(true); setError('')
+  // --- REGISTER ---
+  async function handleRegister(e) {
+    e.preventDefault()
+    if (!newLogin || !newPassword) return setError('Заполните все поля')
+    if (newPassword.length < 4) return setError('Минимум 4 символа')
+    if (newPassword !== newPasswordRepeat) return setError('Пароли не совпадают')
+    setLoading(true)
+    resetError()
     try {
-      const hash = await hashPassword(newPassword)
-      const res = await fetch(API + '/api/register', {
+      const passHash = await hashPassword(newPassword)
+      const digits = phone.replace(/\D/g, '')
+      const res = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           логин: newLogin,
-          пароль_хеш: hash,
-          телефон: phone.replace(/\D/g, ''),
-          имя: tgData?.first_name || newLogin,
-          telegram_id: tgData?.id || null,
-          telegram_username: tgData?.username || null,
-        })
+          пароль_хеш: passHash,
+          телефон: digits,
+          имя: name || null,
+          telegram_id: null,
+          telegram_username: null,
+        }),
       })
       const data = await res.json()
-      if (data.success) {
-        setClient(data.client)
-        localStorage.setItem('tts_client_data', JSON.stringify(data.client))
-        localStorage.setItem('tts_auth_token', JSON.stringify({ login: newLogin, hash, clientId: data.client.id }))
-        navigate('/')
-      } else {
-        setError(data.error || 'Ошибка регистрации')
-      }
+      if (!res.ok) throw new Error(data.error || 'Ошибка регистрации')
+      setAuth('session_' + Date.now(), data.client)
+      navigate('/')
     } catch (err) {
-      setError('Ошибка соединения')
+      setError(err.message)
     } finally {
       setLoading(false)
     }
   }
 
-  // === ВОССТАНОВЛЕНИЕ ===
-  const handleRecovery = async () => {
-    if (!newPassword) { setError('Введите новый пароль'); return }
-    if (newPassword.length < 4) { setError('Пароль минимум 4 символа'); return }
-    if (newPassword !== newPasswordRepeat) { setError('Пароли не совпадают'); return }
-    setLoading(true); setError('')
-    try {
-      const hash = await hashPassword(newPassword)
-      // Обновляем пароль через API login check by phone
-      const res = await fetch(API + '/api/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          логин: login,
-          пароль_хеш: hash,
-          телефон: phone.replace(/\D/g, ''),
-          имя: login,
-        })
-      })
-      const data = await res.json()
-      if (data.success) {
-        setClient(data.client)
-        localStorage.setItem('tts_client_data', JSON.stringify(data.client))
-        localStorage.setItem('tts_auth_token', JSON.stringify({ login, hash, clientId: data.client.id }))
-        navigate('/')
-      } else {
-        setError(data.error)
-      }
-    } catch (err) {
-      setError('Ошибка соединения')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Форматирование телефона
-  const formatPhone = (value) => {
-    const digits = value.replace(/\D/g, '')
-    if (digits.length === 0) return ''
-    let formatted = '+7'
-    if (digits.length > 1) formatted += ' (' + digits.slice(1, 4)
-    if (digits.length > 4) formatted += ') ' + digits.slice(4, 7)
-    if (digits.length > 7) formatted += '-' + digits.slice(7, 9)
-    if (digits.length > 9) formatted += '-' + digits.slice(9, 11)
-    return formatted
+  // Mode title
+  const titles = {
+    'login': 'Вход',
+    'register-phone': 'Регистрация',
+    'register-sms': 'Подтверждение',
+    'register-credentials': 'Создание аккаунта',
+    'recovery': 'Восстановление',
+    'recovery-sms': 'Подтверждение',
+    'recovery-pass': 'Новый пароль',
   }
 
   return (
-    <div className="min-h-screen bg-tts-dark flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-        {/* Логотип */}
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-tts-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <span className="text-3xl font-bold text-white">TTS</span>
-          </div>
-          <h1 className="text-2xl font-bold text-white">TTS Shop</h1>
-        </div>
-
-        {/* === ЛОГИН === */}
-        {mode === 'login' && (
-          <div className="space-y-4">
-            <div>
-              <label className="text-tts-muted text-sm mb-1 block">Логин</label>
-              <input
-                type="text"
-                value={login}
-                onChange={e => setLogin(e.target.value)}
-                placeholder="Ваш логин"
-                autoComplete="username"
-                className="w-full bg-tts-card text-white py-3 px-4 rounded-xl outline-none focus:ring-2 focus:ring-tts-primary"
-              />
-            </div>
-            <div>
-              <label className="text-tts-muted text-sm mb-1 block">Пароль</label>
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="Ваш пароль"
-                autoComplete="current-password"
-                onKeyDown={e => e.key === 'Enter' && handleLogin()}
-                className="w-full bg-tts-card text-white py-3 px-4 rounded-xl outline-none focus:ring-2 focus:ring-tts-primary"
-              />
-            </div>
-
-            {error && <p className="text-tts-danger text-sm text-center">{error}</p>}
-
-            <button onClick={handleLogin} disabled={loading} className="w-full py-4 rounded-xl font-medium bg-tts-primary text-white active:scale-95 transition-all disabled:opacity-50">
-              {loading ? 'Входим...' : 'Войти'}
-            </button>
-
-            <div className="flex justify-between">
-              <button onClick={() => { setMode('recovery'); setError('') }} className="text-tts-muted text-sm">Забыли пароль?</button>
-              <button onClick={() => { setMode('register-tg'); setError('') }} className="text-tts-primary text-sm font-medium">Регистрация</button>
-            </div>
-
-            <div className="border-t border-tts-card pt-4">
-              <button onClick={() => navigate('/')} className="w-full py-3 rounded-xl text-tts-muted bg-tts-card text-center">
-                Продолжить без входа
+    <div className="min-h-screen leather-bg flex flex-col">
+      <div className="max-w-app mx-auto w-full flex-1 flex flex-col">
+        {/* Header */}
+        <header className="sticky top-0 z-40 bg-[rgba(10,9,8,0.95)] backdrop-blur-xl border-b border-[var(--border-gold)]">
+          <div className="flex items-center gap-3 px-4 py-3">
+            {mode !== 'login' && (
+              <button onClick={() => {
+                resetError()
+                if (mode === 'register-sms') setMode('register-phone')
+                else if (mode === 'register-credentials') setMode('register-sms')
+                else if (mode === 'recovery-sms') setMode('recovery')
+                else if (mode === 'recovery-pass') setMode('recovery-sms')
+                else setMode('login')
+              }} className="press-effect p-1">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
               </button>
-            </div>
+            )}
+            <h1 className="text-[14px] font-bold tracking-[2px] uppercase gold-gradient-text">
+              {titles[mode]}
+            </h1>
           </div>
-        )}
+        </header>
 
-        {/* === РЕГИСТРАЦИЯ: Telegram === */}
-        {mode === 'register-tg' && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-white text-center">Регистрация</h2>
-            <p className="text-tts-muted text-sm text-center">Шаг 1/4: Подтвердите Telegram</p>
-
-            <div className="bg-tts-card rounded-2xl p-6 flex flex-col items-center">
-              <p className="text-white text-sm mb-4 text-center">Нажмите кнопку для входа через Telegram</p>
-              <div id="tg-login" className="flex justify-center"></div>
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="w-full animate-fadeIn">
+            {/* Logo */}
+            <div className="text-center mb-8">
+              <div className="text-[36px] font-black gold-gradient-text tracking-[4px] mb-2">TTS</div>
             </div>
 
-            <button onClick={() => { setMode('login'); setError('') }} className="w-full py-3 rounded-xl text-tts-muted bg-tts-card text-center">
-              ← Назад к входу
-            </button>
-          </div>
-        )}
+            {/* LOGIN */}
+            {mode === 'login' && (
+              <form onSubmit={handleLogin} className="space-y-3">
+                <Input placeholder="Логин" value={login} onChange={setLogin} />
+                <Input placeholder="Пароль" value={password} onChange={setPassword} type="password" />
+                {error && <ErrorMsg text={error} />}
+                <GoldBtn text={loading ? 'ЗАГРУЗКА...' : 'ВОЙТИ'} disabled={loading} />
+                <div className="flex justify-between pt-2">
+                  <button type="button" onClick={() => { resetError(); setMode('register-phone') }} className="text-[10px] text-[var(--text-muted)] hover:text-[var(--gold)]">
+                    Регистрация
+                  </button>
+                  <button type="button" onClick={() => { resetError(); setMode('recovery') }} className="text-[10px] text-[var(--text-muted)] hover:text-[var(--gold)]">
+                    Забыли пароль?
+                  </button>
+                </div>
+              </form>
+            )}
 
-        {/* === РЕГИСТРАЦИЯ: Телефон === */}
-        {mode === 'register-phone' && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-white text-center">Регистрация</h2>
-            <p className="text-tts-muted text-sm text-center">Шаг 2/4: Введите номер телефона</p>
-
-            {tgData && (
-              <div className="bg-tts-success/10 rounded-xl p-3 text-center">
-                <p className="text-tts-success text-sm">✅ Telegram подтверждён: {tgData.first_name} (@{tgData.username})</p>
+            {/* REGISTER: PHONE */}
+            {mode === 'register-phone' && (
+              <div className="space-y-3">
+                <Input placeholder="Имя" value={name} onChange={setName} />
+                <Input
+                  placeholder="+7 (900) 123-45-67"
+                  value={phone}
+                  onChange={(v) => setPhone(formatPhone(v))}
+                  type="tel"
+                />
+                {error && <ErrorMsg text={error} />}
+                <GoldBtn text={loading ? 'ОТПРАВКА...' : 'ПОЛУЧИТЬ КОД'} disabled={loading} onClick={handleSendSms} />
               </div>
             )}
 
-            <div>
-              <label className="text-tts-muted text-sm mb-1 block">Номер телефона</label>
-              <input
-                type="tel"
-                value={phone}
-                onChange={e => setPhone(formatPhone(e.target.value))}
-                placeholder="+7 (900) 123-45-67"
-                className="w-full bg-tts-card text-white py-3 px-4 rounded-xl outline-none focus:ring-2 focus:ring-tts-primary text-lg"
-              />
-            </div>
+            {/* REGISTER / RECOVERY: SMS */}
+            {(mode === 'register-sms' || mode === 'recovery-sms') && (
+              <div className="space-y-3">
+                <p className="text-[11px] text-[var(--text-muted)] text-center mb-2">
+                  Код отправлен на {phone}
+                </p>
+                <Input
+                  placeholder="Введите 4-значный код"
+                  value={smsCode}
+                  onChange={setSmsCode}
+                  maxLength={4}
+                  inputMode="numeric"
+                  autoFocus
+                />
+                {error && <ErrorMsg text={error} />}
+                <GoldBtn text={loading ? 'ПРОВЕРКА...' : 'ПОДТВЕРДИТЬ'} disabled={loading} onClick={handleVerifySms} />
+                <div className="text-center pt-2">
+                  {countdown > 0 ? (
+                    <span className="text-[10px] text-[var(--text-muted)]">
+                      Повторная отправка через {countdown}с
+                    </span>
+                  ) : (
+                    <button onClick={handleSendSms} className="text-[10px] text-[var(--gold)] hover:text-[var(--gold-light)]">
+                      Отправить код повторно
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
 
-            {error && <p className="text-tts-danger text-sm text-center">{error}</p>}
+            {/* REGISTER: CREDENTIALS */}
+            {mode === 'register-credentials' && (
+              <form onSubmit={handleRegister} className="space-y-3">
+                <p className="text-[11px] text-[var(--text-muted)] text-center mb-2">
+                  Придумайте логин и пароль для входа
+                </p>
+                <Input placeholder="Логин" value={newLogin} onChange={setNewLogin} />
+                <Input placeholder="Пароль" value={newPassword} onChange={setNewPassword} type="password" />
+                <Input placeholder="Повторите пароль" value={newPasswordRepeat} onChange={setNewPasswordRepeat} type="password" />
+                {error && <ErrorMsg text={error} />}
+                <GoldBtn text={loading ? 'РЕГИСТРАЦИЯ...' : 'ЗАРЕГИСТРИРОВАТЬСЯ'} disabled={loading} />
+              </form>
+            )}
 
-            <button onClick={() => sendSms()} disabled={loading} className="w-full py-4 rounded-xl font-medium bg-tts-primary text-white active:scale-95 disabled:opacity-50">
-              {loading ? 'Отправляем...' : 'Получить SMS код'}
-            </button>
+            {/* RECOVERY: PHONE */}
+            {mode === 'recovery' && (
+              <div className="space-y-3">
+                <p className="text-[11px] text-[var(--text-muted)] text-center mb-2">
+                  Введите номер телефона для восстановления
+                </p>
+                <Input
+                  placeholder="+7 (900) 123-45-67"
+                  value={phone}
+                  onChange={(v) => setPhone(formatPhone(v))}
+                  type="tel"
+                />
+                {error && <ErrorMsg text={error} />}
+                <GoldBtn text={loading ? 'ОТПРАВКА...' : 'ПОЛУЧИТЬ КОД'} disabled={loading} onClick={handleSendSms} />
+              </div>
+            )}
 
-            <button onClick={() => { setMode('register-tg'); setError('') }} className="w-full py-3 rounded-xl text-tts-muted bg-tts-card text-center">
-              ← Назад
-            </button>
+            {/* RECOVERY: NEW PASSWORD */}
+            {mode === 'recovery-pass' && (
+              <form onSubmit={handleRegister} className="space-y-3">
+                <p className="text-[11px] text-[var(--text-muted)] text-center mb-2">
+                  Установите новый пароль
+                </p>
+                <Input placeholder="Новый пароль" value={newPassword} onChange={setNewPassword} type="password" />
+                <Input placeholder="Повторите пароль" value={newPasswordRepeat} onChange={setNewPasswordRepeat} type="password" />
+                {error && <ErrorMsg text={error} />}
+                <GoldBtn text={loading ? 'СОХРАНЕНИЕ...' : 'СОХРАНИТЬ'} disabled={loading} />
+              </form>
+            )}
           </div>
-        )}
-
-        {/* === РЕГИСТРАЦИЯ: SMS код === */}
-        {(mode === 'register-sms' || mode === 'recovery-sms') && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-white text-center">
-              {mode === 'register-sms' ? 'Регистрация' : 'Восстановление'}
-            </h2>
-            <p className="text-tts-muted text-sm text-center">
-              {mode === 'register-sms' ? 'Шаг 3/4' : 'Шаг 2/3'}: Введите код из SMS
-            </p>
-
-            <div className="bg-tts-card rounded-2xl p-4 text-center">
-              <p className="text-tts-muted text-sm">Код отправлен на</p>
-              <p className="text-white font-medium">{phone}</p>
-            </div>
-
-            <div>
-              <input
-                type="number"
-                value={smsCode}
-                onChange={e => setSmsCode(e.target.value.slice(0, 4))}
-                placeholder="Код из SMS"
-                inputMode="numeric"
-                autoFocus
-                className="w-full bg-tts-card text-white py-4 px-4 rounded-xl outline-none focus:ring-2 focus:ring-tts-primary text-2xl text-center tracking-[0.5em]"
-              />
-            </div>
-
-            {error && <p className="text-tts-danger text-sm text-center">{error}</p>}
-
-            <button onClick={verifySms} disabled={loading || smsCode.length < 4} className="w-full py-4 rounded-xl font-medium bg-tts-primary text-white active:scale-95 disabled:opacity-50">
-              {loading ? 'Проверяем...' : 'Подтвердить'}
-            </button>
-
-            <button onClick={() => sendSms()} disabled={countdown > 0 || loading} className="w-full py-3 rounded-xl text-tts-muted bg-tts-card text-center disabled:opacity-50">
-              {countdown > 0 ? `Повторно через ${countdown}с` : 'Отправить ещё раз'}
-            </button>
-          </div>
-        )}
-
-        {/* === РЕГИСТРАЦИЯ: Логин и пароль === */}
-        {mode === 'register-credentials' && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-white text-center">Регистрация</h2>
-            <p className="text-tts-muted text-sm text-center">Шаг 4/4: Создайте логин и пароль</p>
-
-            <div className="bg-tts-success/10 rounded-xl p-3 text-center">
-              <p className="text-tts-success text-sm">✅ Телефон подтверждён</p>
-            </div>
-
-            <div>
-              <label className="text-tts-muted text-sm mb-1 block">Придумайте логин</label>
-              <input
-                type="text"
-                value={newLogin}
-                onChange={e => setNewLogin(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
-                placeholder="mylogin"
-                autoComplete="username"
-                className="w-full bg-tts-card text-white py-3 px-4 rounded-xl outline-none focus:ring-2 focus:ring-tts-primary"
-              />
-              <p className="text-tts-muted text-xs mt-1">Латиница, цифры, подчёркивание</p>
-            </div>
-
-            <div>
-              <label className="text-tts-muted text-sm mb-1 block">Придумайте пароль</label>
-              <input
-                type="password"
-                value={newPassword}
-                onChange={e => setNewPassword(e.target.value)}
-                placeholder="Минимум 4 символа"
-                autoComplete="new-password"
-                className="w-full bg-tts-card text-white py-3 px-4 rounded-xl outline-none focus:ring-2 focus:ring-tts-primary"
-              />
-            </div>
-
-            <div>
-              <label className="text-tts-muted text-sm mb-1 block">Повторите пароль</label>
-              <input
-                type="password"
-                value={newPasswordRepeat}
-                onChange={e => setNewPasswordRepeat(e.target.value)}
-                placeholder="Ещё раз"
-                autoComplete="new-password"
-                className="w-full bg-tts-card text-white py-3 px-4 rounded-xl outline-none focus:ring-2 focus:ring-tts-primary"
-              />
-            </div>
-
-            {error && <p className="text-tts-danger text-sm text-center">{error}</p>}
-
-            <button onClick={handleRegister} disabled={loading} className="w-full py-4 rounded-xl font-medium bg-tts-success text-white active:scale-95 disabled:opacity-50">
-              {loading ? 'Создаём...' : '✅ Создать аккаунт'}
-            </button>
-          </div>
-        )}
-
-        {/* === ВОССТАНОВЛЕНИЕ: ввод логина и телефона === */}
-        {mode === 'recovery' && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-white text-center">Восстановление</h2>
-            <p className="text-tts-muted text-sm text-center">Шаг 1/3: Введите логин и телефон</p>
-
-            <div>
-              <label className="text-tts-muted text-sm mb-1 block">Ваш логин</label>
-              <input
-                type="text"
-                value={login}
-                onChange={e => setLogin(e.target.value)}
-                placeholder="Ваш логин"
-                className="w-full bg-tts-card text-white py-3 px-4 rounded-xl outline-none focus:ring-2 focus:ring-tts-primary"
-              />
-            </div>
-
-            <div>
-              <label className="text-tts-muted text-sm mb-1 block">Телефон при регистрации</label>
-              <input
-                type="tel"
-                value={phone}
-                onChange={e => setPhone(formatPhone(e.target.value))}
-                placeholder="+7 (900) 123-45-67"
-                className="w-full bg-tts-card text-white py-3 px-4 rounded-xl outline-none focus:ring-2 focus:ring-tts-primary"
-              />
-            </div>
-
-            {error && <p className="text-tts-danger text-sm text-center">{error}</p>}
-
-            <button onClick={() => sendSms()} disabled={loading} className="w-full py-4 rounded-xl font-medium bg-tts-primary text-white active:scale-95 disabled:opacity-50">
-              {loading ? 'Отправляем...' : 'Получить SMS код'}
-            </button>
-
-            <button onClick={() => { setMode('login'); setError('') }} className="w-full py-3 rounded-xl text-tts-muted bg-tts-card text-center">
-              ← Назад к входу
-            </button>
-          </div>
-        )}
-
-        {/* === ВОССТАНОВЛЕНИЕ: новый пароль === */}
-        {mode === 'recovery-pass' && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-white text-center">Новый пароль</h2>
-            <p className="text-tts-muted text-sm text-center">Шаг 3/3: Придумайте новый пароль</p>
-
-            <div>
-              <label className="text-tts-muted text-sm mb-1 block">Новый пароль</label>
-              <input
-                type="password"
-                value={newPassword}
-                onChange={e => setNewPassword(e.target.value)}
-                placeholder="Минимум 4 символа"
-                autoComplete="new-password"
-                className="w-full bg-tts-card text-white py-3 px-4 rounded-xl outline-none focus:ring-2 focus:ring-tts-primary"
-              />
-            </div>
-
-            <div>
-              <label className="text-tts-muted text-sm mb-1 block">Повторите</label>
-              <input
-                type="password"
-                value={newPasswordRepeat}
-                onChange={e => setNewPasswordRepeat(e.target.value)}
-                placeholder="Ещё раз"
-                autoComplete="new-password"
-                className="w-full bg-tts-card text-white py-3 px-4 rounded-xl outline-none focus:ring-2 focus:ring-tts-primary"
-              />
-            </div>
-
-            {error && <p className="text-tts-danger text-sm text-center">{error}</p>}
-
-            <button onClick={handleRecovery} disabled={loading} className="w-full py-4 rounded-xl font-medium bg-tts-success text-white active:scale-95 disabled:opacity-50">
-              {loading ? 'Сохраняем...' : '✅ Сохранить пароль'}
-            </button>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   )
 }
 
-export default Auth
+function Input({ placeholder, value, onChange, type = 'text', maxLength, inputMode, autoFocus }) {
+  return (
+    <input
+      type={type}
+      placeholder={placeholder}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      maxLength={maxLength}
+      inputMode={inputMode}
+      autoFocus={autoFocus}
+      className="w-full bg-[rgba(212,175,55,0.05)] border border-[var(--border-gold)] rounded-xl py-3.5 px-4 text-[13px] text-[var(--gold-light)] placeholder-[var(--text-muted)] outline-none focus:border-[var(--gold)] font-[inherit]"
+    />
+  )
+}
+
+function GoldBtn({ text, disabled, onClick }) {
+  return (
+    <button
+      type={onClick ? 'button' : 'submit'}
+      onClick={onClick}
+      disabled={disabled}
+      className="w-full gold-gradient-bg text-[var(--bg-dark)] font-bold text-[12px] tracking-[2px] py-4 rounded-[14px] press-effect disabled:opacity-50"
+    >
+      {text}
+    </button>
+  )
+}
+
+function ErrorMsg({ text }) {
+  return <p className="text-[10px] text-[var(--red)] text-center">{text}</p>
+}

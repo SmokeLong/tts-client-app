@@ -1,90 +1,74 @@
-import React, { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useAuthStore } from './stores/authStore'
 
-import SplashScreen from './pages/SplashScreen'
-import AgeVerification from './pages/AgeVerification'
+import Onboarding from './pages/Onboarding'
 import Home from './pages/Home'
 import Catalog from './pages/Catalog'
-import Auth from "./pages/Auth"
+import Brand from './pages/Brand'
+import Lineup from './pages/Lineup'
 import Product from './pages/Product'
 import Cart from './pages/Cart'
-import Profile from './pages/Profile'
+import Filters from './pages/Filters'
+import QuickOrder from './pages/QuickOrder'
 import Orders from './pages/Orders'
 import Favorites from './pages/Favorites'
-import Preorders from './pages/Preorders'
+import Profile from './pages/Profile'
+import Settings from './pages/Settings'
+import Auth from './pages/Auth'
 
-import { AppProvider } from './context/AppContext'
+function AuthGuard({ children }) {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const isLoading = useAuthStore((s) => s.isLoading)
 
-export const API_BASE = 'https://hook.eu2.make.com'
-
-function App() {
-  const [isLoading, setIsLoading] = useState(true)
-  const [user, setUser] = useState(null)
-  const [ageVerified, setAgeVerified] = useState(false)
-
-  useEffect(() => {
-    // Telegram WebApp
-    const tg = window.Telegram?.WebApp
-    if (tg) {
-      tg.ready()
-      tg.expand()
-      const initData = tg.initDataUnsafe
-      if (initData?.user) {
-        setUser({
-          telegram_id: initData.user.id,
-          username: initData.user.username || '',
-          first_name: initData.user.first_name || '',
-          last_name: initData.user.last_name || '',
-          photo_url: initData.user.photo_url || ''
-        })
-      }
-    }
-
-    // Для веб-версии — dev user
-    if (!window.Telegram?.WebApp?.initDataUnsafe?.user) {
-      setUser({
-        telegram_id: null,
-        username: 'web_user',
-        first_name: 'Гость',
-        last_name: '',
-        photo_url: ''
-      })
-    }
-
-    const ageCheck = localStorage.getItem('tts_age_verified')
-    if (ageCheck === 'true') setAgeVerified(true)
-
-    setTimeout(() => setIsLoading(false), 800)
-  }, [])
-
-  const handleAgeVerified = (verified) => {
-    if (verified) {
-      setAgeVerified(true)
-      localStorage.setItem('tts_age_verified', 'true')
-    }
+  if (isLoading) {
+    return (
+      <div className="min-h-screen leather-bg flex items-center justify-center">
+        <div className="text-[36px] font-black gold-gradient-text tracking-[4px] animate-logoPulse">
+          TTS
+        </div>
+      </div>
+    )
   }
 
-  if (isLoading) return <SplashScreen />
-  if (!ageVerified) return <AgeVerification onVerified={handleAgeVerified} />
+  if (!isAuthenticated) {
+    return <Navigate to="/onboarding" replace />
+  }
 
-  return (
-    <AppProvider user={user}>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/catalog" element={<Catalog />} />
-          <Route path="/product/:id" element={<Product />} />
-          <Route path="/cart" element={<Cart />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/orders" element={<Orders />} />
-          <Route path="/favorites" element={<Favorites />} />
-          <Route path="/preorders" element={<Preorders />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        <Route path="/auth" element={<Auth />} />
-          </Routes>
-      </BrowserRouter>
-    </AppProvider>
-  )
+  return children
 }
 
-export default App
+export default function App() {
+  const init = useAuthStore((s) => s.init)
+
+  useEffect(() => {
+    init()
+  }, [init])
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* Public routes */}
+        <Route path="/onboarding" element={<Onboarding />} />
+        <Route path="/auth" element={<Auth />} />
+
+        {/* Protected routes */}
+        <Route path="/" element={<AuthGuard><Home /></AuthGuard>} />
+        <Route path="/catalog" element={<AuthGuard><Catalog /></AuthGuard>} />
+        <Route path="/brand/:id" element={<AuthGuard><Brand /></AuthGuard>} />
+        <Route path="/lineup/:id" element={<AuthGuard><Lineup /></AuthGuard>} />
+        <Route path="/product/:id" element={<AuthGuard><Product /></AuthGuard>} />
+        <Route path="/cart" element={<AuthGuard><Cart /></AuthGuard>} />
+        <Route path="/filters" element={<AuthGuard><Filters /></AuthGuard>} />
+        <Route path="/quick-order" element={<AuthGuard><QuickOrder /></AuthGuard>} />
+        <Route path="/orders" element={<AuthGuard><Orders /></AuthGuard>} />
+        <Route path="/favorites" element={<AuthGuard><Favorites /></AuthGuard>} />
+        <Route path="/profile" element={<AuthGuard><Profile /></AuthGuard>} />
+        <Route path="/settings" element={<AuthGuard><Settings /></AuthGuard>} />
+
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  )
+}
