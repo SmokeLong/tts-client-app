@@ -37,8 +37,7 @@ function Cart() {
       const { data, error } = await supabase
         .from('точки')
         .select('*')
-        .eq('тип', 'МАГАЗИН')
-        .eq('активна', true)
+        .eq('тип', 'Магазин').eq('активна', true).order('порядок')
         .order('название')
 
       if (error) {
