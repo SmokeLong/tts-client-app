@@ -5,22 +5,11 @@ import { supabase } from '../lib/supabase'
 
 function Cart() {
   const navigate = useNavigate()
-  const {
-    cart,
-    updateQuantity,
-    removeFromCart,
-    clearCart,
-    cartTotalCard,
-    cartTotalCash,
-    client,
-    user
-  } = useApp()
+  const { cart, updateQuantity, removeFromCart, clearCart, cartTotalCard, cartTotalCash, client } = useApp()
 
   const [step, setStep] = useState(1)
   const [paymentType, setPaymentType] = useState('cash')
-  const [deliveryType, setDeliveryType] = useState('pickup')
   const [selectedPoint, setSelectedPoint] = useState('')
-  const [useTcoins, setUseTcoins] = useState(0)
   const [diceRolls, setDiceRolls] = useState(0)
   const [diceDiscount, setDiceDiscount] = useState(0)
   const [changeMoney, setChangeMoney] = useState('')
@@ -28,82 +17,66 @@ function Cart() {
   const [points, setPoints] = useState([])
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    loadPoints()
-  }, [])
+  useEffect(() => { loadPoints() }, [])
 
   const loadPoints = async () => {
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('точки')
         .select('*')
-        .eq('тип', 'Магазин').eq('активна', true).order('порядок')
-        .order('название')
-
-      if (error) {
-        // Попробуем без фильтра типа
-        const { data: allPoints } = await supabase
-          .from('точки')
-          .select('*')
-          .order('название')
-        setPoints(allPoints || [])
-      } else {
-        setPoints(data || [])
-      }
-
-      if (data && data.length > 0) {
-        setSelectedPoint(data[0].id)
-      }
+        .eq('тип', 'Магазин')
+        .eq('активна', true)
+        .order('порядок')
+      setPoints(data || [])
+      if (data && data.length > 0) setSelectedPoint(data[0].id)
     } catch (err) {
-      console.error('Ошибка загрузки точек:', err)
+      console.error('Ошибка точек:', err)
     }
   }
 
   const baseTotal = paymentType === 'cash' ? cartTotalCash : cartTotalCard
   const volumeDiscount = cart.length >= 7 ? 0.1 : cart.length >= 5 ? 0.07 : cart.length >= 3 ? 0.05 : 0
   const volumeDiscountAmount = Math.round(baseTotal * volumeDiscount)
-  const clientDiscount = client?.скидка_процент || client?.discount_percent || 0
-  const clientDiscountAmount = Math.round((baseTotal - volumeDiscountAmount) * (clientDiscount / 100))
-  const tcoinsDiscount = Math.min(useTcoins, Math.round(baseTotal * 0.3))
-  const diceDiscountAmount = Math.round((baseTotal - volumeDiscountAmount - clientDiscountAmount - tcoinsDiscount) * (diceDiscount / 100))
-  const finalTotal = baseTotal - volumeDiscountAmount - clientDiscountAmount - tcoinsDiscount - diceDiscountAmount
+  const diceDiscountAmount = Math.round((baseTotal - volumeDiscountAmount) * (diceDiscount / 100))
+  const finalTotal = baseTotal - volumeDiscountAmount - diceDiscountAmount
   const cashSavings = cartTotalCard - cartTotalCash
 
   const rollDice = () => {
     if (diceRolls >= 2) return
     const result = Math.floor(Math.random() * 6) + 1
     const discounts = [0, 3, 5, 7, 10, 15]
-    window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('heavy')
     setDiceRolls(prev => prev + 1)
     setDiceDiscount(discounts[result - 1])
   }
 
   const handleSubmit = async () => {
-    if (!selectedPoint && deliveryType === 'pickup') {
-      setError('Выберите точку самовывоза')
-      return
-    }
+    if (!selectedPoint) { setError('Выберите точку'); return }
     setLoading(true)
     setError('')
-
     try {
-      // Пока создаём заказ напрямую в Supabase
-      // Позже заменим на Edge Function для атомарности
+      // Собираем товары в JSON
+      const itemsJson = cart.map(item => ({
+        id: item.id,
+        name: item.name,
+        brand: item.brand,
+        qty: item.quantity,
+        price: paymentType === 'cash' ? (item.price_cash || item.price_card) : (item.price_card || item.price_cash),
+        sum: (paymentType === 'cash' ? (item.price_cash || item.price_card) : (item.price_card || item.price_cash)) * item.quantity
+      }))
+
       const orderData = {
-        клиент_id: client?.id || null,
-        точка_id: deliveryType === 'pickup' ? selectedPoint : null,
-        тип_оплаты: paymentType === 'cash' ? 'НАЛИЧНЫЕ' : 'БЕЗНАЛ',
-        сумма_итого: finalTotal,
-        сумма_без_скидок: baseTotal,
+        точка_id: selectedPoint,
+        тип_оплаты: paymentType === 'cash' ? 'Наличные' : 'Безнал',
+        статус: 'Новый',
+        итоговая_сумма: finalTotal,
+        сумма_нал: paymentType === 'cash' ? finalTotal : 0,
+        сумма_безнал: paymentType === 'card' ? finalTotal : 0,
+        выгода_за_нал: paymentType === 'cash' ? cashSavings : 0,
         скидка_объём: volumeDiscountAmount,
-        скидка_клиент: clientDiscountAmount,
-        скидка_ткоины: tcoinsDiscount,
         скидка_кубик: diceDiscountAmount,
-        кубик_процент: diceDiscount,
-        кубик_бросков: diceRolls,
         сдача_с: changeMoney ? parseInt(changeMoney) : null,
-        статус: 'НОВЫЙ',
-        источник: 'ВЕБ',
+        товары_json: itemsJson,
+        анонимный: true,
       }
 
       const { data: order, error: orderError } = await supabase
@@ -114,28 +87,11 @@ function Cart() {
 
       if (orderError) throw orderError
 
-      // Добавляем позиции заказа
-      const items = cart.map(item => ({
-        заказ_id: order.id,
-        товар_id: item.id,
-        количество: item.quantity,
-        цена: paymentType === 'cash' ? (item.price_cash || item.price_card) : (item.price_card || item.price_cash),
-        сумма: (paymentType === 'cash' ? (item.price_cash || item.price_card) : (item.price_card || item.price_cash)) * item.quantity,
-      }))
-
-      const { error: itemsError } = await supabase
-        .from('позиции_в_заказах')
-        .insert(items)
-
-      if (itemsError) console.error('Ошибка позиций:', itemsError)
-
       clearCart()
-      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
       navigate('/orders', { state: { newOrder: order } })
-
     } catch (err) {
       console.error('Ошибка заказа:', err)
-      setError(err.message || 'Ошибка оформления заказа')
+      setError(err.message || 'Ошибка оформления')
     } finally {
       setLoading(false)
     }
@@ -190,25 +146,21 @@ function Cart() {
               </button>
             </div>
           ))}
-          {error && <div className="bg-tts-warning/20 text-tts-warning rounded-xl p-4 text-sm mb-4">⚠️ {error}</div>}
         </div>
       ) : (
         <div className="px-4">
-          {/* Точка */}
           <div className="bg-tts-card rounded-2xl p-4 mb-4">
             <p className="text-tts-muted text-sm mb-3">📍 Точка самовывоза</p>
             <div className="space-y-2">
               {points.map(point => (
                 <button key={point.id} onClick={() => setSelectedPoint(point.id)} className={`w-full p-3 rounded-xl text-left transition-all ${selectedPoint === point.id ? 'bg-tts-primary text-white' : 'bg-tts-dark text-white'}`}>
-                  <p className="font-medium">{point.название || point.name}</p>
+                  <p className="font-medium">{point.название}</p>
                   {point.адрес && <p className="text-sm opacity-70">{point.адрес}</p>}
                 </button>
               ))}
-              {points.length === 0 && <p className="text-tts-muted text-sm">Загрузка точек...</p>}
             </div>
           </div>
 
-          {/* Оплата */}
           <div className="bg-tts-card rounded-2xl p-4 mb-4">
             <p className="text-tts-muted text-sm mb-3">💳 Способ оплаты</p>
             <div className="grid grid-cols-2 gap-2">
@@ -222,12 +174,11 @@ function Cart() {
             )}
           </div>
 
-          {/* Кубик */}
           <div className="bg-tts-card rounded-2xl p-4 mb-4">
             <div className="flex justify-between items-center mb-3">
               <div>
                 <p className="text-white font-medium">🎲 Бросить кубик</p>
-                <p className="text-tts-muted text-xs">50 ткоинов за бросок (макс 2)</p>
+                <p className="text-tts-muted text-xs">Шанс на скидку (макс 2)</p>
               </div>
               {diceDiscount > 0 && <span className="bg-tts-success text-white px-3 py-1 rounded-full text-sm font-bold">-{diceDiscount}%</span>}
             </div>
@@ -236,7 +187,6 @@ function Cart() {
             </button>
           </div>
 
-          {/* Сдача */}
           {paymentType === 'cash' && (
             <div className="bg-tts-card rounded-2xl p-4 mb-4">
               <p className="text-tts-muted text-sm mb-3">Сдача с</p>
@@ -253,13 +203,10 @@ function Cart() {
         </div>
       )}
 
-      {/* Итого */}
       <div className="fixed bottom-0 left-0 right-0 bg-tts-dark border-t border-tts-card p-4">
         <div className="mb-4 space-y-1">
           <div className="flex justify-between text-sm"><span className="text-tts-muted">Товаров ({cart.length})</span><span className="text-white">{baseTotal} ₽</span></div>
           {volumeDiscountAmount > 0 && <div className="flex justify-between text-sm"><span className="text-tts-muted">Скидка за объём ({Math.round(volumeDiscount*100)}%)</span><span className="text-tts-success">-{volumeDiscountAmount} ₽</span></div>}
-          {clientDiscountAmount > 0 && <div className="flex justify-between text-sm"><span className="text-tts-muted">Ваша скидка ({clientDiscount}%)</span><span className="text-tts-success">-{clientDiscountAmount} ₽</span></div>}
-          {tcoinsDiscount > 0 && <div className="flex justify-between text-sm"><span className="text-tts-muted">Ткоины</span><span className="text-tts-warning">-{tcoinsDiscount} ₽</span></div>}
           {diceDiscountAmount > 0 && <div className="flex justify-between text-sm"><span className="text-tts-muted">Кубик (-{diceDiscount}%)</span><span className="text-tts-success">-{diceDiscountAmount} ₽</span></div>}
           <div className="flex justify-between text-lg font-bold pt-2 border-t border-tts-card"><span className="text-white">Итого</span><span className="text-white">{finalTotal} ₽</span></div>
         </div>
