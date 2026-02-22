@@ -63,6 +63,14 @@ export default function Onboarding() {
     if (isAuthenticated) navigate('/', { replace: true })
   }, [isAuthenticated, navigate])
 
+  function handleDobChange(e) {
+    let v = e.target.value.replace(/\D/g, '')
+    if (v.length > 8) v = v.slice(0, 8)
+    if (v.length >= 5) v = v.slice(0, 2) + '.' + v.slice(2, 4) + '.' + v.slice(4)
+    else if (v.length >= 3) v = v.slice(0, 2) + '.' + v.slice(2)
+    setDob(v)
+  }
+
   function goToSlide(n) {
     setCurrentSlide(n)
   }
@@ -126,17 +134,15 @@ export default function Onboarding() {
       <div className="max-w-app mx-auto min-h-screen relative overflow-hidden">
         <div
           ref={containerRef}
-          className="flex transition-transform duration-500 ease-out h-screen"
+          className="flex transition-transform duration-500 ease-out min-h-screen"
           style={{ width: '400%', transform: `translateX(-${currentSlide * 25}%)` }}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
           {/* Slide 1: Welcome */}
-          <div className="w-1/4 h-screen flex flex-col px-6 pt-10 pb-10">
-            <div className="flex justify-center items-center py-6">
-              <div className="text-[72px] font-black gold-gradient-text tracking-[6px] animate-logoPulse">
-                TTS
-              </div>
+          <div className="w-1/4 min-h-screen flex flex-col overflow-y-auto px-6 pt-10 pb-10">
+            <div className="flex justify-center py-6 animate-logoPulse">
+              <img src="/assets/logo.png" alt="Time to Snus" className="w-[220px] h-auto" />
             </div>
             <p className="text-[13px] font-bold text-[var(--gold-light)] text-center leading-relaxed mb-5 tracking-wide">
               {SLIDES_DATA[0].tagline}
@@ -165,7 +171,7 @@ export default function Onboarding() {
           </div>
 
           {/* Slide 2: Discounts */}
-          <div className="w-1/4 h-screen flex flex-col px-6 pt-10 pb-10">
+          <div className="w-1/4 min-h-screen flex flex-col overflow-y-auto px-6 pt-10 pb-10">
             <SlideIcon emoji={SLIDES_DATA[1].icon} />
             <h2 className="text-[22px] font-extrabold text-[var(--gold-light)] text-center tracking-[2px] mb-4">
               {SLIDES_DATA[1].title}
@@ -200,7 +206,7 @@ export default function Onboarding() {
           </div>
 
           {/* Slide 3: TCoins */}
-          <div className="w-1/4 h-screen flex flex-col px-6 pt-10 pb-10">
+          <div className="w-1/4 min-h-screen flex flex-col overflow-y-auto px-6 pt-10 pb-10">
             <SlideIcon emoji={SLIDES_DATA[2].icon} />
             <h2 className="text-[22px] font-extrabold text-[var(--gold-light)] text-center tracking-[2px] mb-4">
               {SLIDES_DATA[2].title}
@@ -232,7 +238,7 @@ export default function Onboarding() {
           </div>
 
           {/* Slide 4: Registration */}
-          <div className="w-1/4 h-screen flex flex-col px-6 pt-10 pb-10">
+          <div className="w-1/4 min-h-screen flex flex-col overflow-y-auto px-6 pt-10 pb-10">
             <h2 className="text-[22px] font-extrabold text-[var(--gold-light)] text-center tracking-[2px] mt-5 mb-4">
               РЕГИСТРАЦИЯ
             </h2>
@@ -255,9 +261,11 @@ export default function Onboarding() {
                 <span className="text-[9px] text-[var(--text-muted)] tracking-[1px]">ДАТА РОЖДЕНИЯ</span>
                 <input
                   type="text"
+                  inputMode="numeric"
                   value={dob}
-                  onChange={(e) => setDob(e.target.value)}
+                  onChange={handleDobChange}
                   placeholder="ДД.ММ.ГГГГ"
+                  maxLength={10}
                   className="py-3.5 px-4 bg-[rgba(212,175,55,0.05)] border border-[var(--border-gold)] rounded-xl text-[13px] text-[var(--gold-light)] placeholder-[var(--text-muted)] outline-none focus:border-[var(--gold)] font-[inherit]"
                 />
               </div>

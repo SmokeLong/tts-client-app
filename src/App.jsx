@@ -24,9 +24,7 @@ function AuthGuard({ children }) {
   if (isLoading) {
     return (
       <div className="min-h-screen leather-bg flex items-center justify-center">
-        <div className="text-[36px] font-black gold-gradient-text tracking-[4px] animate-logoPulse">
-          TTS
-        </div>
+        <img src="/assets/logo.png" alt="Time to Snus" className="w-[180px] h-auto animate-logoPulse" />
       </div>
     )
   }

@@ -22,9 +22,7 @@ export default function Header({ title, showBack = false, showSearch = false, sh
               {title}
             </h1>
           ) : (
-            <div className="text-[20px] font-black tracking-[3px] gold-gradient-text">
-              TTS
-            </div>
+            <img src="/assets/logo.png" alt="Time to Snus" className="h-[36px] w-auto" />
           )}
         </div>
 

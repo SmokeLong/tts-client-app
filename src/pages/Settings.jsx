@@ -107,7 +107,7 @@ export default function Settings() {
   const PAYMENT_OPTIONS = ['НАЛИЧНЫЕ', 'БЕЗНАЛИЧНЫЕ']
 
   return (
-    <div className="min-h-screen leather-bg">
+    <div className="min-h-screen leather-bg" style={{ overflow: 'visible' }}>
       <div className="max-w-app mx-auto min-h-screen">
         <PageHeader title="НАСТРОЙКИ" />
 
