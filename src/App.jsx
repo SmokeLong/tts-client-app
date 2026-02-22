@@ -5,6 +5,7 @@ import SplashScreen from './pages/SplashScreen'
 import AgeVerification from './pages/AgeVerification'
 import Home from './pages/Home'
 import Catalog from './pages/Catalog'
+import Auth from "./pages/Auth"
 import Product from './pages/Product'
 import Cart from './pages/Cart'
 import Profile from './pages/Profile'
@@ -79,7 +80,8 @@ function App() {
           <Route path="/favorites" element={<Favorites />} />
           <Route path="/preorders" element={<Preorders />} />
           <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <Route path="/auth" element={<Auth />} />
+          </Routes>
       </BrowserRouter>
     </AppProvider>
   )
