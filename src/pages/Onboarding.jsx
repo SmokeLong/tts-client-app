@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
+import { supabase } from '../lib/supabase'
 
 const SLIDES_DATA = [
   {
@@ -47,11 +48,31 @@ async function hashPassword(password) {
   return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
+function calcAge(dobStr) {
+  if (!dobStr || dobStr.length < 10) return null
+  const parts = dobStr.split('.')
+  if (parts.length !== 3) return null
+  const day = parseInt(parts[0], 10)
+  const month = parseInt(parts[1], 10)
+  const year = parseInt(parts[2], 10)
+  if (!day || !month || !year || year < 1900 || year > 2100) return null
+  const birth = new Date(year, month - 1, day)
+  const today = new Date()
+  let age = today.getFullYear() - birth.getFullYear()
+  const monthDiff = today.getMonth() - birth.getMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--
+  }
+  return age
+}
+
 export default function Onboarding() {
   const [currentSlide, setCurrentSlide] = useState(0)
   const [name, setName] = useState('')
   const [dob, setDob] = useState('')
   const [ageConfirmed, setAgeConfirmed] = useState(false)
+  const [personalDataConsent, setPersonalDataConsent] = useState(false)
+  const [notificationsConsent, setNotificationsConsent] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const containerRef = useRef(null)
@@ -79,9 +100,15 @@ export default function Onboarding() {
     if (currentSlide < 3) goToSlide(currentSlide + 1)
   }
 
+  const dobAge = calcAge(dob)
+  const isUnderage = dob.length === 10 && dobAge !== null && dobAge < 18
+  const canSubmit = ageConfirmed && personalDataConsent && !isUnderage && !loading
+
   async function handleRegister() {
     if (!name.trim()) return setError('Введите имя')
     if (!ageConfirmed) return setError('Подтвердите возраст')
+    if (!personalDataConsent) return setError('Необходимо согласие на обработку данных')
+    if (isUnderage) return setError('Регистрация доступна только лицам старше 18 лет')
 
     setLoading(true)
     setError('')
@@ -90,24 +117,29 @@ export default function Onboarding() {
       const login = 'user_' + Date.now().toString(36)
       const password = Math.random().toString(36).slice(2, 10)
       const passwordHash = await hashPassword(password)
+      const uniqueNum = 'W' + Date.now().toString(36).toUpperCase()
 
-      const res = await fetch('/api/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const { data, error: dbError } = await supabase
+        .from('клиенты')
+        .insert({
           логин: login,
           пароль_хеш: passwordHash,
           имя: name.trim(),
-          телефон: null,
-          telegram_id: null,
-          telegram_username: null,
-        }),
-      })
+          дата_рождения: dob || null,
+          telegram_id: Date.now(),
+          уникальный_номер: uniqueNum,
+          дата_регистрации: new Date().toISOString(),
+          статус: 'Активен',
+          баланс_ткоинов: 0,
+          сумма_всех_покупок: 0,
+          количество_покупок: 0,
+        })
+        .select()
+        .single()
 
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Ошибка регистрации')
+      if (dbError) throw dbError
 
-      setAuth('session_' + Date.now(), data.client)
+      setAuth('session_' + Date.now(), data)
       navigate('/', { replace: true })
     } catch (err) {
       setError(err.message)
@@ -270,25 +302,34 @@ export default function Onboarding() {
                 />
               </div>
 
-              {/* Age confirmation */}
-              <div className="flex items-start gap-3 p-3.5 bg-[rgba(248,113,113,0.1)] border border-[rgba(248,113,113,0.3)] rounded-xl mt-2">
-                <button
-                  onClick={() => setAgeConfirmed(!ageConfirmed)}
-                  className={`w-6 h-6 rounded-md border-2 flex items-center justify-center shrink-0 transition-all ${
-                    ageConfirmed
-                      ? 'bg-[var(--gold)] border-[var(--gold)]'
-                      : 'bg-[rgba(212,175,55,0.1)] border-[var(--border-gold)]'
-                  }`}
-                >
-                  {ageConfirmed && (
-                    <span className="text-[14px] font-bold text-[var(--bg-dark)]">✓</span>
-                  )}
-                </button>
-                <div className="text-[10px] text-[var(--red)] leading-relaxed">
-                  <strong className="block mb-1">Подтверждаю, что мне есть 18 лет</strong>
-                  Продажа никотиносодержащей продукции лицам младше 18 лет запрещена
-                </div>
-              </div>
+              {isUnderage && (
+                <p className="text-[10px] text-[var(--red)] text-center mt-1">
+                  Регистрация доступна только лицам старше 18 лет
+                </p>
+              )}
+
+              {/* Checkbox 1: Age confirmation */}
+              <OnboardingCheckbox
+                checked={ageConfirmed}
+                onChange={() => setAgeConfirmed(!ageConfirmed)}
+                label="Мне есть 18 лет"
+                sublabel="Продажа никотиносодержащей продукции лицам младше 18 лет запрещена"
+              />
+
+              {/* Checkbox 2: Personal data consent */}
+              <OnboardingCheckbox
+                checked={personalDataConsent}
+                onChange={() => setPersonalDataConsent(!personalDataConsent)}
+                label="Согласен на обработку персональных данных"
+              />
+
+              {/* Checkbox 3: Notifications (optional) */}
+              <OnboardingCheckbox
+                checked={notificationsConsent}
+                onChange={() => setNotificationsConsent(!notificationsConsent)}
+                label="Хочу получать уведомления о поступлении моих любимых позиций"
+                optional
+              />
             </div>
 
             {error && (
@@ -300,7 +341,7 @@ export default function Onboarding() {
               onDot={goToSlide}
               buttonText={loading ? 'ЗАГРУЗКА...' : 'НАЧАТЬ'}
               onNext={handleRegister}
-              disabled={!ageConfirmed || loading}
+              disabled={!canSubmit}
             />
           </div>
         </div>
@@ -318,6 +359,42 @@ function SlideIcon({ emoji }) {
       }}
     >
       {emoji}
+    </div>
+  )
+}
+
+function OnboardingCheckbox({ checked, onChange, label, sublabel, optional }) {
+  return (
+    <div
+      className={`flex items-start gap-3 p-3.5 rounded-xl mt-2 transition-all duration-300 ${
+        checked
+          ? 'bg-[rgba(74,222,128,0.1)] border border-[rgba(74,222,128,0.3)]'
+          : 'bg-[rgba(248,113,113,0.1)] border border-[rgba(248,113,113,0.3)]'
+      }`}
+    >
+      <button
+        onClick={onChange}
+        className={`w-6 h-6 rounded-md border-2 flex items-center justify-center shrink-0 transition-all ${
+          checked
+            ? 'bg-[var(--green,#4ade80)] border-[var(--green,#4ade80)]'
+            : 'bg-[rgba(248,113,113,0.15)] border-[rgba(248,113,113,0.4)]'
+        }`}
+      >
+        {checked && (
+          <span className="text-[14px] font-bold text-[var(--bg-dark)]">✓</span>
+        )}
+      </button>
+      <div>
+        <div className={`text-[10px] leading-relaxed font-bold ${checked ? 'text-[var(--green,#4ade80)]' : 'text-[var(--red)]'}`}>
+          {label}
+          {optional && <span className="font-normal text-[var(--text-muted)]"> (необязательно)</span>}
+        </div>
+        {sublabel && (
+          <div className={`text-[9px] mt-0.5 ${checked ? 'text-[var(--text-muted)]' : 'text-[var(--red)]'} opacity-70`}>
+            {sublabel}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

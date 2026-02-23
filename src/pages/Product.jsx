@@ -67,6 +67,7 @@ export default function Product() {
   const [product, setProduct] = useState(null)
   const [stock, setStock] = useState({})
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(null)
   const [qty, setQty] = useState(1)
   const [isFavorite, setIsFavorite] = useState(false)
 
@@ -76,21 +77,35 @@ export default function Product() {
 
   async function loadProduct() {
     setLoading(true)
-    const [prodRes, invRes] = await Promise.all([
-      supabase.from('товары').select('*').eq('id', id).single(),
-      supabase.from('инвентарь').select('*').eq('товар_id', id),
-    ])
+    setLoadError(null)
+    try {
+      const [prodRes, invRes] = await Promise.all([
+        supabase.from('товары').select('*').eq('id', id).single(),
+        supabase.from('инвентарь').select('*').eq('товар_id', id),
+      ])
 
-    if (prodRes.data) setProduct(mapProduct(prodRes.data))
-
-    if (invRes.data) {
-      const s = {}
-      for (const row of invRes.data) {
-        s[row.точка_id] = row.количество
+      if (prodRes.error) {
+        console.error('Product load error:', prodRes.error)
+        setLoadError(prodRes.error.message)
+        setLoading(false)
+        return
       }
-      setStock(s)
+
+      if (prodRes.data) setProduct(mapProduct(prodRes.data))
+
+      if (invRes.data) {
+        const s = {}
+        for (const row of invRes.data) {
+          s[row.точка_id] = row.количество
+        }
+        setStock(s)
+      }
+    } catch (err) {
+      console.error('Product load error:', err)
+      setLoadError(err.message || 'Ошибка загрузки')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   function handleAddToCart() {
@@ -117,6 +132,17 @@ export default function Product() {
     )
   }
 
+  if (loadError) {
+    return (
+      <div className="min-h-screen leather-bg flex flex-col items-center justify-center gap-3">
+        <p className="text-[36px]">⚠️</p>
+        <p className="text-[12px] text-[var(--text-muted)]">Ошибка загрузки товара</p>
+        <p className="text-[10px] text-[var(--red)] max-w-[250px] text-center">{loadError}</p>
+        <button onClick={() => navigate(-1)} className="text-[11px] text-[var(--gold)] mt-2">← Назад</button>
+      </div>
+    )
+  }
+
   if (!product) {
     return (
       <div className="min-h-screen leather-bg flex flex-col items-center justify-center gap-3">
@@ -128,7 +154,7 @@ export default function Product() {
   }
 
   const emoji = getFlavorEmoji(product.flavor)
-  const cartCount = cartItems.reduce((sum, i) => sum + i.qty, 0)
+  const cartCount = cartItems.reduce((sum, i) => sum + (i.qty || 0), 0)
 
   const specs = [
     { icon: '⚡', label: 'КРЕПОСТЬ', value: product.strength || '—' },
