@@ -127,7 +127,7 @@ export default function Onboarding() {
           логин: login,
           пароль_хеш: passwordHash,
           имя: name.trim(),
-          дата_рождения: dob || null,
+          дата_рождения: dob && dob.length === 10 ? dob.split('.').reverse().join('-') : null,
           telegram_id: Date.now(),
           уникальный_номер: uniqueNum,
           дата_регистрации: new Date().toISOString(),
