@@ -48,24 +48,28 @@ export default function Catalog() {
 
   async function loadData() {
     setLoading(true)
-    const [prodRes, invRes] = await Promise.all([
-      supabase.from('товары').select('*').eq('активен', true),
-      supabase.from('инвентарь').select('*'),
-    ])
+    try {
+      const [prodRes, invRes] = await Promise.all([
+        supabase.from('товары').select('*').eq('активен', true),
+        supabase.from('инвентарь').select('*'),
+      ])
 
-    if (prodRes.data) {
-      setProducts(prodRes.data.map(mapProduct))
-    }
+      if (prodRes.error) console.error('Catalog load error:', prodRes.error)
+      if (prodRes.data) setProducts(prodRes.data.map(mapProduct))
 
-    if (invRes.data) {
-      const inv = {}
-      for (const row of invRes.data) {
-        if (!inv[row.товар_id]) inv[row.товар_id] = {}
-        inv[row.товар_id][row.точка_id] = row.количество
+      if (invRes.data) {
+        const inv = {}
+        for (const row of invRes.data) {
+          if (!inv[row.товар_id]) inv[row.товар_id] = {}
+          inv[row.товар_id][row.точка_id] = row.количество
+        }
+        setInventory(inv)
       }
-      setInventory(inv)
+    } catch (err) {
+      console.error('Catalog load error:', err)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   // Group by brand

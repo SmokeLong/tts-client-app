@@ -65,14 +65,20 @@ export default function Brand() {
 
   async function loadProducts() {
     setLoading(true)
-    const { data } = await supabase
-      .from('товары')
-      .select('*')
-      .eq('бренд', decodedBrand)
-      .eq('активен', true)
+    try {
+      const { data, error } = await supabase
+        .from('товары')
+        .select('*')
+        .eq('бренд', decodedBrand)
+        .eq('активен', true)
 
-    if (data) setProducts(data.map(mapProduct))
-    setLoading(false)
+      if (error) console.error('Brand load error:', error)
+      if (data) setProducts(data.map(mapProduct))
+    } catch (err) {
+      console.error('Brand load error:', err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   // Group by lineup

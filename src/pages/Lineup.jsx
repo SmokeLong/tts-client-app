@@ -40,28 +40,33 @@ export default function Lineup() {
 
   async function loadData() {
     setLoading(true)
-
-    let query = supabase.from('товары').select('*').eq('бренд', brandName).eq('активен', true)
-    if (!isAll) {
-      query = query.eq('линейка', lineupName)
-    }
-
-    const [prodRes, invRes] = await Promise.all([
-      query,
-      supabase.from('инвентарь').select('*'),
-    ])
-
-    if (prodRes.data) setProducts(prodRes.data.map(mapProduct))
-
-    if (invRes.data) {
-      const inv = {}
-      for (const row of invRes.data) {
-        if (!inv[row.товар_id]) inv[row.товар_id] = {}
-        inv[row.товар_id][row.точка_id] = row.количество
+    try {
+      let query = supabase.from('товары').select('*').eq('бренд', brandName).eq('активен', true)
+      if (!isAll) {
+        query = query.eq('линейка', lineupName)
       }
-      setInventory(inv)
+
+      const [prodRes, invRes] = await Promise.all([
+        query,
+        supabase.from('инвентарь').select('*'),
+      ])
+
+      if (prodRes.error) console.error('Lineup load error:', prodRes.error)
+      if (prodRes.data) setProducts(prodRes.data.map(mapProduct))
+
+      if (invRes.data) {
+        const inv = {}
+        for (const row of invRes.data) {
+          if (!inv[row.товар_id]) inv[row.товар_id] = {}
+          inv[row.товар_id][row.точка_id] = row.количество
+        }
+        setInventory(inv)
+      }
+    } catch (err) {
+      console.error('Lineup load error:', err)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   function getStock(productId) {

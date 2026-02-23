@@ -117,7 +117,9 @@ export default function Onboarding() {
       const login = 'user_' + Date.now().toString(36)
       const password = Math.random().toString(36).slice(2, 10)
       const passwordHash = await hashPassword(password)
-      const uniqueNum = 'W' + Date.now().toString(36).toUpperCase()
+      // Format: 4 uppercase letters + 1 digit (e.g. ADSX3)
+      const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+      const uniqueNum = Array.from({ length: 4 }, () => letters[Math.floor(Math.random() * 26)]).join('') + Math.floor(Math.random() * 10)
 
       const { data, error: dbError } = await supabase
         .from('клиенты')
@@ -133,6 +135,8 @@ export default function Onboarding() {
           баланс_ткоинов: 0,
           сумма_всех_покупок: 0,
           количество_покупок: 0,
+          согласие_на_обработку: personalDataConsent,
+          согласие_на_уведомления: notificationsConsent,
         })
         .select()
         .single()

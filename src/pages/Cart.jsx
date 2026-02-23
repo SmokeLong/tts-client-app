@@ -23,6 +23,22 @@ function getFlavorEmoji(flavor) {
   return '📦'
 }
 
+const TG_BOT_TOKEN = import.meta.env.VITE_TG_BOT_TOKEN || ''
+const TG_CHAT_ID = import.meta.env.VITE_TG_CHAT_ID || ''
+
+async function sendTelegramNotification(text) {
+  if (!TG_BOT_TOKEN || !TG_CHAT_ID) return
+  try {
+    await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: TG_CHAT_ID, text, parse_mode: 'HTML' }),
+    })
+  } catch (e) {
+    console.error('Telegram notification failed:', e)
+  }
+}
+
 const LOCATIONS = [
   { id: 1, name: 'ЦЕНТР', address: 'Куколкина 9', hours: '10:00 - 22:00' },
   { id: 2, name: 'СЕВЕРНЫЙ', address: 'Бульвар Победы 9', hours: '12:00 - 23:00' },
@@ -49,6 +65,8 @@ export default function Cart() {
   const getVolumeDiscount = useCartStore((s) => s.getVolumeDiscount)
   const getCashSavings = useCartStore((s) => s.getCashSavings)
   const getTotal = useCartStore((s) => s.getTotal)
+
+  const updateClient = useAuthStore((s) => s.updateClient)
 
   const [orderType, setOrderType] = useState('order') // 'order' | 'preorder'
   const [deliveryType, setDeliveryType] = useState('pickup') // 'pickup' | 'delivery'
@@ -135,43 +153,108 @@ export default function Cart() {
     setSubmitting(true)
 
     try {
-      const orderData = {
-        клиент_id: client?.id,
-        точка_id: pickupPointId,
-        тип_оплаты: paymentMethod === 'cash' ? 'Наличные' : paymentMethod === 'card' ? 'Безналичный' : 'Смешанный',
-        статус: orderType === 'preorder' ? 'Предзаказ' : 'Новый',
-        товары_json: items.map((i) => ({
-          id: i.product.id,
-          название: i.product.name,
-          количество: i.qty,
-          цена: i.paymentType === 'card' ? i.product.priceCard : i.product.priceCash,
-          тип_оплаты: i.paymentType,
-        })),
-        итоговая_сумма: total,
-        сумма_нал: paymentMethod === 'cash' ? total : paymentMethod === 'mixed'
-          ? items.filter((i) => i.paymentType === 'cash').reduce((s, i) => s + (i.product.priceCash || 0) * i.qty, 0)
-          : 0,
-        сумма_безнал: paymentMethod === 'card' ? total : paymentMethod === 'mixed'
-          ? items.filter((i) => i.paymentType === 'card').reduce((s, i) => s + (i.product.priceCard || 0) * i.qty, 0)
-          : 0,
-        выгода_за_нал: cashSavings,
-        скидка_объём: volumeDiscount.totalDiscount,
-        списано_ткоинов: tcoinsToSpend,
-        начислено_ткоинов: cashback,
-        шайба_в_подарок: volumeDiscount.freeShayba,
-        комментарий: useCartStore.getState().comment || null,
+      const товары_json = items.map((i) => ({
+        id: i.product.id,
+        название: i.product.name,
+        количество: i.qty,
+        цена: i.paymentType === 'card' ? i.product.priceCard : i.product.priceCash,
+        тип_оплаты: i.paymentType,
+      }))
+
+      const сумма_нал = paymentMethod === 'cash' ? total : paymentMethod === 'mixed'
+        ? items.filter((i) => i.paymentType === 'cash').reduce((s, i) => s + (i.product.priceCash || 0) * i.qty, 0)
+        : 0
+      const сумма_безнал = paymentMethod === 'card' ? total : paymentMethod === 'mixed'
+        ? items.filter((i) => i.paymentType === 'card').reduce((s, i) => s + (i.product.priceCard || 0) * i.qty, 0)
+        : 0
+
+      // 1. Create order
+      const { data: order, error: orderError } = await supabase
+        .from('заказы')
+        .insert({
+          клиент_id: client?.id,
+          точка_id: pickupPointId || null,
+          тип_оплаты: paymentMethod === 'cash' ? 'Наличные' : paymentMethod === 'card' ? 'Безналичный' : 'Смешанный',
+          статус: orderType === 'preorder' ? 'Предзаказ' : 'Новый',
+          товары_json,
+          итоговая_сумма: total,
+          сумма_нал,
+          сумма_безнал,
+          выгода_за_нал: cashSavings,
+          скидка_объём: volumeDiscount.totalDiscount,
+          списано_ткоинов: tcoinsToSpend,
+          начислено_ткоинов: cashback,
+          шайба_в_подарок: volumeDiscount.freeShayba,
+          комментарий: useCartStore.getState().comment || null,
+        })
+        .select()
+        .single()
+
+      if (orderError) throw orderError
+
+      // 2. Update inventory at the selected pickup point
+      if (pickupPointId) {
+        for (const item of товары_json) {
+          const { data: inv } = await supabase
+            .from('инвентарь')
+            .select('id, количество')
+            .eq('товар_id', item.id)
+            .eq('точка_id', pickupPointId)
+            .single()
+
+          if (inv) {
+            await supabase
+              .from('инвентарь')
+              .update({ количество: Math.max(0, inv.количество - item.количество) })
+              .eq('id', inv.id)
+          }
+        }
       }
 
-      const res = await fetch('/api/create-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(orderData),
-      })
+      // 3. Update client stats (tcoins, total purchases, discount tier)
+      if (client?.id) {
+        const newTcoins = (client.баланс_ткоинов || 0) - tcoinsToSpend + cashback
+        const newTotal = (client.сумма_всех_покупок || 0) + total
+        const newCount = (client.количество_покупок || 0) + 1
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}))
-        throw new Error(errData.error || 'Ошибка создания заказа')
+        let discount = 0
+        if (newTotal >= 59000) discount = 10
+        else if (newTotal >= 44000) discount = 5
+        else if (newTotal >= 24000) discount = 3
+
+        await supabase
+          .from('клиенты')
+          .update({
+            баланс_ткоинов: Math.max(0, newTcoins),
+            сумма_всех_покупок: newTotal,
+            количество_покупок: newCount,
+            постоянная_скидка: discount,
+            последняя_активность: new Date().toISOString(),
+          })
+          .eq('id', client.id)
+
+        // Update local auth state
+        updateClient({
+          баланс_ткоинов: Math.max(0, newTcoins),
+          сумма_всех_покупок: newTotal,
+          количество_покупок: newCount,
+          постоянная_скидка: discount,
+        })
       }
+
+      // 4. Send Telegram notification to seller
+      const locationName = LOCATIONS.find((l) => l.id === pickupPointId)?.name || 'Не указана'
+      const itemsList = товары_json.map((i) => `  ${i.название} x${i.количество} — ${i.цена * i.количество}₽`).join('\n')
+      const tgText = `🛒 Новый заказ #${order.id}\n\n` +
+        `👤 ${client?.имя || 'Клиент'} (${client?.уникальный_номер || ''})\n` +
+        `📍 ${locationName}\n` +
+        `💰 ${total}₽ (${paymentMethod === 'cash' ? 'нал' : paymentMethod === 'card' ? 'безнал' : 'смеш'})\n\n` +
+        `${itemsList}\n\n` +
+        (tcoinsToSpend > 0 ? `🪙 Списано ткоинов: ${tcoinsToSpend}\n` : '') +
+        (volumeDiscount.totalDiscount > 0 ? `🏷 Скидка за объём: -${volumeDiscount.totalDiscount}₽\n` : '') +
+        (orderType === 'preorder' ? '⏳ ПРЕДЗАКАЗ' : '✅ Заказ')
+
+      sendTelegramNotification(tgText).catch(() => {})
 
       clearCart()
       navigate('/orders')

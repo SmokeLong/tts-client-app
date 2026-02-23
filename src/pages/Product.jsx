@@ -1,21 +1,51 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Component } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useCartStore } from '../stores/cartStore'
 import QuantitySelector from '../components/ui/QuantitySelector'
 
+class ProductErrorBoundary extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error }
+  }
+  componentDidCatch(error, info) {
+    console.error('Product render crash:', error, info)
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen leather-bg flex flex-col items-center justify-center gap-3">
+          <p className="text-[36px]">💥</p>
+          <p className="text-[12px] text-[var(--text-muted)]">Ошибка отображения товара</p>
+          <p className="text-[10px] text-[var(--red)] max-w-[250px] text-center">
+            {this.state.error?.message || 'Неизвестная ошибка'}
+          </p>
+          <button onClick={() => window.history.back()} className="text-[11px] text-[var(--gold)] mt-2">
+            ← Назад
+          </button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
 function mapProduct(raw) {
   return {
     id: raw.id,
-    name: raw.название,
-    brand: raw.бренд,
-    lineup: raw.линейка,
-    category: raw.категория,
-    priceCash: raw.цена_нал,
-    priceCard: raw.цена_безнал,
-    strength: raw.крепость,
-    flavor: raw.вкус,
-    format: raw.формат_пакетов,
+    name: raw.название ?? '',
+    brand: raw.бренд ?? '',
+    lineup: raw.линейка ?? '',
+    category: raw.категория ?? '',
+    priceCash: raw.цена_нал ?? 0,
+    priceCard: raw.цена_безнал ?? 0,
+    strength: raw.крепость != null ? String(raw.крепость) : '',
+    flavor: raw.вкус != null ? String(raw.вкус) : '',
+    format: raw.формат_пакетов != null ? String(raw.формат_пакетов) : '',
     packets: raw.кол_во_пакетов,
     photo: raw.фото_url,
     active: raw.активен,
@@ -24,7 +54,7 @@ function mapProduct(raw) {
 
 function getFlavorEmoji(flavor) {
   if (!flavor) return '📦'
-  const f = flavor.toLowerCase()
+  const f = String(flavor).toLowerCase()
   if (f.includes('мят')) return '🌿'
   if (f.includes('виноград') || f.includes('grape')) return '🍇'
   if (f.includes('манго') || f.includes('mango')) return '🥭'
@@ -58,7 +88,15 @@ const LOCATIONS = [
   { id: 3, name: 'ЛБ', address: 'Вкусно И. на Димитрова' },
 ]
 
-export default function Product() {
+export default function ProductPage() {
+  return (
+    <ProductErrorBoundary>
+      <Product />
+    </ProductErrorBoundary>
+  )
+}
+
+function Product() {
   const { id } = useParams()
   const navigate = useNavigate()
   const addItem = useCartStore((s) => s.addItem)
@@ -385,8 +423,8 @@ export default function Product() {
 }
 
 function getStrengthLevel(strength) {
-  if (!strength) return 5
-  const s = strength.toLowerCase()
+  if (!strength && strength !== 0) return 5
+  const s = String(strength).toLowerCase()
   if (s.includes('очень крепк')) return 10
   if (s.includes('крепк')) return 8
   if (s.includes('средне-крепк')) return 7

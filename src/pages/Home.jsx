@@ -41,22 +41,25 @@ export default function Home() {
 
   async function loadProducts() {
     setLoading(true)
+    try {
+      const { data: products, error } = await supabase
+        .from('товары')
+        .select('*')
+        .eq('активен', true)
+        .limit(20)
 
-    // Load products for top demand (most popular - just get first batch)
-    const { data: products } = await supabase
-      .from('товары')
-      .select('*')
-      .eq('активен', true)
-      .limit(20)
+      if (error) console.error('Home products load error:', error)
 
-    if (products) {
-      const mapped = products.map(mapProduct)
-      // "Top demand" - first 10 products
-      setTopProducts(mapped.slice(0, 10))
-      // "Latest" - last 10 products
-      setNewProducts(mapped.slice(10, 20).length ? mapped.slice(10, 20) : mapped.slice(0, 8))
+      if (products && products.length > 0) {
+        const mapped = products.map(mapProduct)
+        setTopProducts(mapped.slice(0, 10))
+        setNewProducts(mapped.slice(10, 20).length ? mapped.slice(10, 20) : mapped.slice(0, 8))
+      }
+    } catch (err) {
+      console.error('Home products load error:', err)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   function mapProduct(raw) {
