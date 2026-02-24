@@ -28,6 +28,9 @@ export default async function handler(req, res) {
       начислено_ткоинов,
       шайба_в_подарок,
       комментарий,
+      // Extra fields for Telegram notification
+      имя_клиента,
+      уникальный_номер,
     } = req.body
 
     if (!клиент_id || !товары_json || товары_json.length === 0) {
@@ -85,8 +88,9 @@ export default async function handler(req, res) {
       .eq('id', клиент_id)
       .single()
 
+    let updatedClient = null
     if (client) {
-      const newTcoins = (client.баланс_ткоинов || 0) - (списано_ткоинов || 0) + (начислено_ткоинов || 0)
+      const newTcoins = Math.max(0, (client.баланс_ткоинов || 0) - (списано_ткоинов || 0) + (начислено_ткоинов || 0))
       const newTotal = (client.сумма_всех_покупок || 0) + (итоговая_сумма || 0)
       const newCount = (client.количество_покупок || 0) + 1
 
@@ -99,13 +103,20 @@ export default async function handler(req, res) {
       await supabase
         .from('клиенты')
         .update({
-          баланс_ткоинов: Math.max(0, newTcoins),
+          баланс_ткоинов: newTcoins,
           сумма_всех_покупок: newTotal,
           количество_покупок: newCount,
           постоянная_скидка: discount,
           последняя_активность: new Date().toISOString(),
         })
         .eq('id', клиент_id)
+
+      updatedClient = {
+        баланс_ткоинов: newTcoins,
+        сумма_всех_покупок: newTotal,
+        количество_покупок: newCount,
+        постоянная_скидка: discount,
+      }
     }
 
     // 4. Send Telegram notifications (accountant + location manager)
@@ -121,19 +132,20 @@ export default async function handler(req, res) {
 
     sendOrderNotification({
       order_id: order.id,
-      client_name: `Клиент #${клиент_id}`,
+      client_name: имя_клиента || `Клиент #${клиент_id}`,
+      client_id: уникальный_номер || клиент_id,
       location_id: точка_id,
       location_name: locationName,
       items: товары_json.map((i) => ({ name: i.название, qty: i.количество, sum: i.цена * i.количество })),
       total: итоговая_сумма,
       payment_type: тип_оплаты,
-      status: `✅ ${статус}`,
+      status: статус === 'Предзаказ' ? '⏳ ПРЕДЗАКАЗ' : '',
     }).catch((e) => console.error('Telegram notify error:', e))
 
     return res.status(200).json({
       success: true,
       order,
-      начислено_ткоинов: начислено_ткоинов || 0,
+      updatedClient,
     })
   } catch (error) {
     console.error('Create order error:', error)

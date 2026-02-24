@@ -152,10 +152,10 @@ export default function Cart() {
         ? items.filter((i) => i.paymentType === 'card').reduce((s, i) => s + (i.product.priceCard || 0) * i.qty, 0)
         : 0
 
-      // 1. Create order
-      const { data: order, error: orderError } = await supabase
-        .from('заказы')
-        .insert({
+      const res = await fetch('/api/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           клиент_id: client?.id,
           точка_id: pickupPointId || null,
           тип_оплаты: paymentMethod === 'cash' ? 'Наличные' : paymentMethod === 'card' ? 'Безналичный' : 'Смешанный',
@@ -170,78 +170,18 @@ export default function Cart() {
           начислено_ткоинов: cashback,
           шайба_в_подарок: volumeDiscount.freeShayba,
           комментарий: useCartStore.getState().comment || null,
-        })
-        .select()
-        .single()
-
-      if (orderError) throw orderError
-
-      // 2. Update inventory at the selected pickup point
-      if (pickupPointId) {
-        for (const item of товары_json) {
-          const { data: inv } = await supabase
-            .from('инвентарь')
-            .select('id, количество')
-            .eq('товар_id', item.id)
-            .eq('точка_id', pickupPointId)
-            .single()
-
-          if (inv) {
-            await supabase
-              .from('инвентарь')
-              .update({ количество: Math.max(0, inv.количество - item.количество) })
-              .eq('id', inv.id)
-          }
-        }
-      }
-
-      // 3. Update client stats (tcoins, total purchases, discount tier)
-      if (client?.id) {
-        const newTcoins = (client.баланс_ткоинов || 0) - tcoinsToSpend + cashback
-        const newTotal = (client.сумма_всех_покупок || 0) + total
-        const newCount = (client.количество_покупок || 0) + 1
-
-        let discount = 0
-        if (newTotal >= 59000) discount = 10
-        else if (newTotal >= 44000) discount = 5
-        else if (newTotal >= 24000) discount = 3
-
-        await supabase
-          .from('клиенты')
-          .update({
-            баланс_ткоинов: Math.max(0, newTcoins),
-            сумма_всех_покупок: newTotal,
-            количество_покупок: newCount,
-            постоянная_скидка: discount,
-            последняя_активность: new Date().toISOString(),
-          })
-          .eq('id', client.id)
-
-        // Update local auth state
-        updateClient({
-          баланс_ткоинов: Math.max(0, newTcoins),
-          сумма_всех_покупок: newTotal,
-          количество_покупок: newCount,
-          постоянная_скидка: discount,
-        })
-      }
-
-      // 4. Send Telegram notification to seller
-      fetch('/api/notify-telegram', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          order_id: order.id,
-          client_name: client?.имя,
-          client_id: client?.уникальный_номер,
-          location_id: pickupPointId,
-          location_name: LOCATIONS.find((l) => l.id === pickupPointId)?.name,
-          items: товары_json.map((i) => ({ name: i.название, qty: i.количество, sum: i.цена * i.количество })),
-          total,
-          payment_type: paymentMethod === 'cash' ? 'нал' : paymentMethod === 'card' ? 'безнал' : 'смешанная',
-          status: orderType === 'preorder' ? '⏳ ПРЕДЗАКАЗ' : '',
+          имя_клиента: client?.имя,
+          уникальный_номер: client?.уникальный_номер,
         }),
-      }).catch(() => {})
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Ошибка создания заказа')
+
+      // Update local auth state with server-calculated values
+      if (data.updatedClient) {
+        updateClient(data.updatedClient)
+      }
 
       clearCart()
       navigate('/orders')
