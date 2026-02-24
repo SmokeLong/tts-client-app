@@ -191,8 +191,18 @@ export default function Catalog() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="w-8 h-8 border-2 border-[var(--gold)] border-t-transparent rounded-full animate-spin" />
+          <div className="space-y-4">
+            {/* Brand skeletons */}
+            <div className="skeleton h-5 w-24 mb-3" />
+            <div className="grid grid-cols-2 gap-3.5">
+              {[1,2,3,4,5,6].map(i => (
+                <div key={i} className="card p-4 flex flex-col items-center gap-3" style={{animationDelay: `${i*0.1}s`}}>
+                  <div className="skeleton w-16 h-16 rounded-full" />
+                  <div className="skeleton h-4 w-20" />
+                  <div className="skeleton h-3 w-16" />
+                </div>
+              ))}
+            </div>
           </div>
         ) : showSearch ? (
           <>

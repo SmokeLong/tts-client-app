@@ -171,8 +171,34 @@ export default function Orders() {
         {/* Orders List */}
         <div className="px-4 pb-4">
           {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <div className="w-8 h-8 border-2 border-[var(--gold)] border-t-transparent rounded-full animate-spin" />
+            <div className="space-y-3">
+              {[1,2,3].map(i => (
+                <div key={i} className="card overflow-hidden">
+                  <div className="px-4 py-3.5 flex items-center justify-between border-b border-[var(--border-gold)]">
+                    <div>
+                      <div className="skeleton h-4 w-24 mb-1.5" />
+                      <div className="skeleton h-3 w-32" />
+                    </div>
+                    <div className="skeleton h-6 w-20 rounded-xl" />
+                  </div>
+                  <div className="px-4 py-3 space-y-2.5">
+                    <div className="flex items-center gap-3">
+                      <div className="skeleton w-10 h-10 rounded-lg" />
+                      <div className="skeleton h-3 w-32 flex-1" />
+                      <div className="skeleton h-3 w-14" />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="skeleton w-10 h-10 rounded-lg" />
+                      <div className="skeleton h-3 w-28 flex-1" />
+                      <div className="skeleton h-3 w-14" />
+                    </div>
+                  </div>
+                  <div className="px-4 py-3 flex justify-between">
+                    <div className="skeleton h-3 w-24" />
+                    <div className="skeleton h-5 w-16" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : filteredOrders.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16">

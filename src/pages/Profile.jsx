@@ -53,12 +53,15 @@ export default function Profile() {
   const [ordersCount, setOrdersCount] = useState(0)
   const [totalSpend, setTotalSpend] = useState(0)
   const [favoriteProduct, setFavoriteProduct] = useState(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (client?.id) loadProfileData()
+    else setLoading(false)
   }, [client?.id])
 
   async function loadProfileData() {
+    setLoading(true)
     // Load orders stats
     const { data: orders } = await supabase
       .from('заказы')
@@ -87,6 +90,7 @@ export default function Profile() {
         setFavoriteProduct({ name: topEntry[0], count: topEntry[1].count, item: topEntry[1].item })
       }
     }
+    setLoading(false)
   }
 
   const initial = client?.имя?.charAt(0)?.toUpperCase() || 'T'
@@ -146,6 +150,38 @@ export default function Profile() {
     { icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>, title: 'ПОДДЕРЖКА', desc: 'Ответим быстро', path: null },
     { icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>, title: 'ПРАВИЛА И СКИДКИ', desc: 'Как работает система', path: null },
   ]
+
+  if (loading) {
+    return (
+      <AppShell>
+        <Header title="Профиль" />
+        <div className="px-4 py-4 space-y-4">
+          <div className="card p-5">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="skeleton w-[70px] h-[70px] rounded-full" />
+              <div className="flex-1 space-y-2">
+                <div className="skeleton h-5 w-32" />
+                <div className="skeleton h-3 w-20" />
+                <div className="skeleton h-3 w-28" />
+              </div>
+            </div>
+            <div className="flex gap-4 pt-4 border-t border-[var(--border-gold)]">
+              {[1,2,3].map(i => <div key={i} className="flex-1 flex flex-col items-center gap-1.5"><div className="skeleton h-5 w-12" /><div className="skeleton h-2 w-16" /></div>)}
+            </div>
+          </div>
+          <div className="card p-4 flex items-center gap-3.5">
+            <div className="skeleton w-[50px] h-[50px] rounded-full" />
+            <div className="flex-1 space-y-1.5"><div className="skeleton h-6 w-16" /><div className="skeleton h-3 w-28" /></div>
+          </div>
+          <div className="card p-4 space-y-3">
+            <div className="skeleton h-4 w-32" />
+            <div className="skeleton h-2 w-full rounded-full" />
+            <div className="flex justify-between">{[1,2,3].map(i => <div key={i} className="skeleton h-4 w-12" />)}</div>
+          </div>
+        </div>
+      </AppShell>
+    )
+  }
 
   return (
     <AppShell>

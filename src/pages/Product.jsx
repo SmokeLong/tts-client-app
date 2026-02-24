@@ -164,8 +164,28 @@ function Product() {
 
   if (loading) {
     return (
-      <div className="min-h-screen leather-bg flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-[var(--gold)] border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen leather-bg">
+        <div className="max-w-app mx-auto">
+          <div className="h-14 border-b border-[var(--border-gold)]" />
+          <div className="skeleton h-[280px] rounded-none" />
+          <div className="px-5 py-6 space-y-3">
+            <div className="skeleton h-3 w-32" />
+            <div className="skeleton h-7 w-48" />
+            <div className="skeleton h-3 w-full" />
+            <div className="skeleton h-3 w-3/4" />
+            <div className="grid grid-cols-2 gap-2.5 mt-4">
+              {[1,2,3,4,5,6].map(i => (
+                <div key={i} className="card p-3.5 flex items-center gap-3">
+                  <div className="skeleton w-9 h-9 rounded-[10px]" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="skeleton h-2 w-12" />
+                    <div className="skeleton h-3 w-16" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     )
   }

@@ -164,8 +164,13 @@ export default function Home() {
           </div>
 
           {loading ? (
-            <div className="card p-4 flex items-center justify-center h-[140px]">
-              <div className="w-8 h-8 border-2 border-[var(--gold)] border-t-transparent rounded-full animate-spin" />
+            <div className="card p-4 flex items-center gap-4 h-[140px]">
+              <div className="skeleton w-[60px] h-[60px] rounded-xl shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="skeleton h-3 w-24" />
+                <div className="skeleton h-4 w-36" />
+                <div className="skeleton h-5 w-16" />
+              </div>
             </div>
           ) : currentTop ? (
             <div className="card p-4 relative">
@@ -258,9 +263,14 @@ export default function Home() {
           </div>
 
           {loading ? (
-            <div className="flex gap-3">
+            <div className="flex gap-3 overflow-hidden">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="card p-3 min-w-[140px] h-[160px] animate-pulse" />
+                <div key={i} className="card p-3 min-w-[140px] flex flex-col items-center gap-2 shrink-0">
+                  <div className="skeleton w-14 h-14 rounded-xl" />
+                  <div className="skeleton h-3 w-20" />
+                  <div className="skeleton h-3 w-16" />
+                  <div className="skeleton h-4 w-14 mt-auto" />
+                </div>
               ))}
             </div>
           ) : (

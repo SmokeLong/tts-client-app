@@ -142,8 +142,20 @@ export default function Favorites() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="w-8 h-8 border-2 border-[var(--gold)] border-t-transparent rounded-full animate-spin" />
+          <div className="px-4 grid grid-cols-2 gap-3">
+            {[1,2,3,4].map(i => (
+              <div key={i} className="card overflow-hidden">
+                <div className="skeleton h-[120px] rounded-none" />
+                <div className="p-3 space-y-2">
+                  <div className="skeleton h-3 w-20" />
+                  <div className="skeleton h-4 w-full" />
+                  <div className="flex justify-between items-center mt-2">
+                    <div className="skeleton h-4 w-14" />
+                    <div className="skeleton w-9 h-9 rounded-[10px]" />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         ) : favoriteIds.length === 0 ? (
           /* Empty State */

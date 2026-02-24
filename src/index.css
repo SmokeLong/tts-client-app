@@ -166,6 +166,43 @@ html, body, #root {
   100% { transform: translateX(100%) rotate(45deg); }
 }
 
+/* Skeleton shimmer */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, rgba(212,175,55,0.06) 25%, rgba(212,175,55,0.12) 50%, rgba(212,175,55,0.06) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+/* Stagger animation for cards */
+.stagger-item {
+  opacity: 0;
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Toast */
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes toastOut {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-20px); }
+}
+
+.toast-in { animation: toastIn 0.3s ease-out; }
+.toast-out { animation: toastOut 0.3s ease-in forwards; }
+
+/* Pull to refresh */
+@keyframes pullSpin {
+  to { transform: rotate(360deg); }
+}
+
 /* Line clamp utility */
 .line-clamp-2 {
   display: -webkit-box;
