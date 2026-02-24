@@ -84,10 +84,22 @@ export default function Orders() {
       .from('заказы')
       .select('*')
       .eq('клиент_id', client.id)
+      .neq('статус', 'Удалён')
       .order('created_at', { ascending: false })
 
     if (data) setOrders(data)
     setLoading(false)
+  }
+
+  async function handleDelete(orderId) {
+    const res = await fetch('/api/delete-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order_id: orderId, клиент_id: client.id }),
+    })
+    if (res.ok) {
+      setOrders((prev) => prev.filter((o) => o.id !== orderId))
+    }
   }
 
   const filteredOrders = useMemo(() => {
@@ -258,12 +270,20 @@ export default function Orders() {
                       </>
                     )}
                     {isCancelled && (
-                      <button
-                        onClick={() => handleRepeat(order)}
-                        className="flex-1 py-2.5 gold-gradient-bg rounded-[10px] text-[var(--bg-dark)] text-[9px] font-bold tracking-wider press-effect text-center"
-                      >
-                        ПОВТОРИТЬ
-                      </button>
+                      <>
+                        <button
+                          onClick={() => handleDelete(order.id)}
+                          className="flex-1 py-2.5 card text-[var(--red)] text-[9px] font-bold tracking-wider press-effect text-center"
+                        >
+                          УДАЛИТЬ
+                        </button>
+                        <button
+                          onClick={() => handleRepeat(order)}
+                          className="flex-1 py-2.5 gold-gradient-bg rounded-[10px] text-[var(--bg-dark)] text-[9px] font-bold tracking-wider press-effect text-center"
+                        >
+                          ПОВТОРИТЬ
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
