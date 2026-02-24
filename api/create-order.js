@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { sendOrderNotification } from './_telegram.js'
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -107,25 +108,27 @@ export default async function handler(req, res) {
         .eq('id', клиент_id)
     }
 
-    // 4. Send Telegram notification to seller
-    const botToken = process.env.TG_BOT_TOKEN
-    const chatId = process.env.TELEGRAM_SELLER_CHAT_ID || process.env.TG_CHAT_ID
-    if (botToken && chatId) {
-      const itemsList = товары_json.map((i) => `  ${i.название} x${i.количество} — ${i.цена * i.количество}₽`).join('\n')
-      const tgText = `🛒 Новый заказ #${order.id}\n\n` +
-        `👤 Клиент #${клиент_id}\n` +
-        `💰 ${итоговая_сумма}₽ (${тип_оплаты})\n\n` +
-        `${itemsList}\n\n` +
-        (списано_ткоинов > 0 ? `🪙 Списано ткоинов: ${списано_ткоинов}\n` : '') +
-        (скидка_объём > 0 ? `🏷 Скидка за объём: -${скидка_объём}₽\n` : '') +
-        `✅ ${статус}`
-
-      await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: chatId, text: tgText }),
-      }).catch((e) => console.error('Telegram notify error:', e))
+    // 4. Send Telegram notifications (accountant + location manager)
+    let locationName = null
+    if (точка_id) {
+      const { data: loc } = await supabase
+        .from('точки')
+        .select('название')
+        .eq('id', точка_id)
+        .single()
+      locationName = loc?.название
     }
+
+    sendOrderNotification({
+      order_id: order.id,
+      client_name: `Клиент #${клиент_id}`,
+      location_id: точка_id,
+      location_name: locationName,
+      items: товары_json.map((i) => ({ name: i.название, qty: i.количество, sum: i.цена * i.количество })),
+      total: итоговая_сумма,
+      payment_type: тип_оплаты,
+      status: `✅ ${статус}`,
+    }).catch((e) => console.error('Telegram notify error:', e))
 
     return res.status(200).json({
       success: true,

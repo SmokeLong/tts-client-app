@@ -227,21 +227,20 @@ export default function Cart() {
       }
 
       // 4. Send Telegram notification to seller
-      const locationName = LOCATIONS.find((l) => l.id === pickupPointId)?.name || 'Не указана'
-      const itemsList = товары_json.map((i) => `  ${i.название} x${i.количество} — ${i.цена * i.количество}₽`).join('\n')
-      const tgText = `🛒 Новый заказ #${order.id}\n\n` +
-        `👤 ${client?.имя || 'Клиент'} (${client?.уникальный_номер || ''})\n` +
-        `📍 ${locationName}\n` +
-        `💰 ${total}₽ (${paymentMethod === 'cash' ? 'нал' : paymentMethod === 'card' ? 'безнал' : 'смеш'})\n\n` +
-        `${itemsList}\n\n` +
-        (tcoinsToSpend > 0 ? `🪙 Списано ткоинов: ${tcoinsToSpend}\n` : '') +
-        (volumeDiscount.totalDiscount > 0 ? `🏷 Скидка за объём: -${volumeDiscount.totalDiscount}₽\n` : '') +
-        (orderType === 'preorder' ? '⏳ ПРЕДЗАКАЗ' : '✅ Заказ')
-
       fetch('/api/notify-telegram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: tgText }),
+        body: JSON.stringify({
+          order_id: order.id,
+          client_name: client?.имя,
+          client_id: client?.уникальный_номер,
+          location_id: pickupPointId,
+          location_name: LOCATIONS.find((l) => l.id === pickupPointId)?.name,
+          items: товары_json.map((i) => ({ name: i.название, qty: i.количество, sum: i.цена * i.количество })),
+          total,
+          payment_type: paymentMethod === 'cash' ? 'нал' : paymentMethod === 'card' ? 'безнал' : 'смешанная',
+          status: orderType === 'preorder' ? '⏳ ПРЕДЗАКАЗ' : '',
+        }),
       }).catch(() => {})
 
       clearCart()
