@@ -114,11 +114,18 @@ export const useCartStore = create(
         }, 0)
       },
 
-      getTotal() {
+      getLoyaltyDiscount(discountPercent = 0) {
+        if (!discountPercent) return 0
+        const subtotal = get().getSubtotal()
+        return Math.floor(subtotal * discountPercent / 100)
+      },
+
+      getTotal(discountPercent = 0) {
         const subtotal = get().getSubtotal()
         const volumeDiscount = get().getVolumeDiscount().totalDiscount
+        const loyaltyDiscount = Math.floor(subtotal * discountPercent / 100)
         const tcoins = get().tcoinsToSpend
-        return Math.max(0, subtotal - volumeDiscount - tcoins)
+        return Math.max(0, subtotal - volumeDiscount - loyaltyDiscount - tcoins)
       },
     }),
     {

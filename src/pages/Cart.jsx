@@ -48,6 +48,7 @@ export default function Cart() {
   const getSubtotal = useCartStore((s) => s.getSubtotal)
   const getVolumeDiscount = useCartStore((s) => s.getVolumeDiscount)
   const getCashSavings = useCartStore((s) => s.getCashSavings)
+  const getLoyaltyDiscount = useCartStore((s) => s.getLoyaltyDiscount)
   const getTotal = useCartStore((s) => s.getTotal)
 
   const updateClient = useAuthStore((s) => s.updateClient)
@@ -107,10 +108,12 @@ export default function Cart() {
   }
 
   // Calculate prices
+  const loyaltyPercent = client?.постоянная_скидка || 0
   const subtotal = getSubtotal()
   const volumeDiscount = getVolumeDiscount()
   const cashSavings = getCashSavings()
-  const total = getTotal()
+  const loyaltyDiscount = getLoyaltyDiscount(loyaltyPercent)
+  const total = getTotal(loyaltyPercent)
 
   // Cashback
   const cashback = tcoinsToSpend > 0 ? 0 : Math.floor(subtotal * 0.015)
@@ -166,6 +169,7 @@ export default function Cart() {
           сумма_безнал,
           выгода_за_нал: cashSavings,
           скидка_объём: volumeDiscount.totalDiscount,
+          скидка_постоянная: loyaltyDiscount,
           списано_ткоинов: tcoinsToSpend,
           начислено_ткоинов: cashback,
           шайба_в_подарок: volumeDiscount.freeShayba,
@@ -535,6 +539,9 @@ export default function Cart() {
                 value={`-${volumeDiscount.totalDiscount} ₽`}
                 green
               />
+            )}
+            {loyaltyDiscount > 0 && (
+              <SumRow label={`Постоянная скидка (${loyaltyPercent}%)`} value={`-${loyaltyDiscount} ₽`} green />
             )}
             {cashSavings > 0 && paymentMethod === 'cash' && (
               <SumRow label="Выгода за оплату нал." value={`-${cashSavings} ₽`} green />
