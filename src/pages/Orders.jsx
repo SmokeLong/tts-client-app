@@ -224,7 +224,7 @@ export default function Orders() {
               </button>
             </div>
           ) : (
-            filteredOrders.map((order) => {
+            filteredOrders.map((order, idx) => {
               const statusInfo = STATUS_MAP[order.статус] || { label: order.статус, cls: 'pending' }
               const statusStyle = STATUS_STYLES[statusInfo.cls]
               const items = order.товары_json || []
@@ -233,7 +233,7 @@ export default function Orders() {
               const isCancelled = order.статус === 'Отменён'
 
               return (
-                <div key={order.id} className="card overflow-hidden mb-3">
+                <div key={order.id} className="card overflow-hidden mb-3 stagger-item" style={{animationDelay: `${Math.min(idx * 0.08, 0.5)}s`}}>
                   {/* Header */}
                   <div className="px-4 py-3.5 flex items-center justify-between border-b border-[var(--border-gold)]">
                     <div>

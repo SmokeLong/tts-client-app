@@ -217,8 +217,10 @@ export default function Catalog() {
               <span className="text-[10px] text-[var(--text-muted)]">{filteredProducts.length} шт</span>
             </div>
             <div className="grid grid-cols-2 gap-3.5 pb-4">
-              {filteredProducts.map((p) => (
-                <ProductCard key={p.id} product={p} stock={getStock(p.id)} showFavorite />
+              {filteredProducts.map((p, idx) => (
+                <div key={p.id} className="stagger-item" style={{animationDelay: `${Math.min(idx * 0.05, 0.4)}s`}}>
+                  <ProductCard product={p} stock={getStock(p.id)} showFavorite />
+                </div>
               ))}
             </div>
             {filteredProducts.length === 0 && (
@@ -240,11 +242,12 @@ export default function Catalog() {
               <span className="text-[10px] text-[var(--text-muted)]">{brands.length} шт</span>
             </div>
             <div className="grid grid-cols-2 gap-3.5 pb-4">
-              {brands.map((brand) => (
+              {brands.map((brand, idx) => (
                 <div
                   key={brand.name}
+                  style={{animationDelay: `${Math.min(idx * 0.05, 0.4)}s`}}
                   onClick={() => navigate(`/brand/${encodeURIComponent(brand.name)}`)}
-                  className="card overflow-hidden relative group cursor-pointer press-effect"
+                  className="card overflow-hidden relative group cursor-pointer press-effect stagger-item"
                 >
                   <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[var(--gold)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                   <div className="p-4 flex flex-col items-center gap-2">

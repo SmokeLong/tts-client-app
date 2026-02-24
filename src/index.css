@@ -91,9 +91,11 @@ html, body, #root {
 }
 
 /* Active press effect */
+.press-effect {
+  transition: transform 0.15s ease;
+}
 .press-effect:active {
   transform: scale(0.95);
-  transition: transform 0.1s;
 }
 
 /* Animations */

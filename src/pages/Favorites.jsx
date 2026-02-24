@@ -184,14 +184,15 @@ export default function Favorites() {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              {products.map((product) => {
+              {products.map((product, idx) => {
                 const stock = stockMap[product.id] || {}
                 const outOfStock = isOutOfStock(product.id)
 
                 return (
                   <div
                     key={product.id}
-                    className={`bg-[var(--bg-card)] border border-[var(--border-gold)] rounded-[14px] overflow-hidden relative ${
+                    style={{animationDelay: `${Math.min(idx * 0.06, 0.4)}s`}}
+                    className={`bg-[var(--bg-card)] border border-[var(--border-gold)] rounded-[14px] overflow-hidden relative stagger-item ${
                       outOfStock ? 'opacity-80' : ''
                     }`}
                   >
