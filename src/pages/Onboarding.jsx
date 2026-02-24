@@ -69,6 +69,7 @@ function calcAge(dobStr) {
 export default function Onboarding() {
   const [currentSlide, setCurrentSlide] = useState(0)
   const [name, setName] = useState('')
+  const [phone, setPhone] = useState('')
   const [dob, setDob] = useState('')
   const [ageConfirmed, setAgeConfirmed] = useState(false)
   const [personalDataConsent, setPersonalDataConsent] = useState(false)
@@ -83,6 +84,20 @@ export default function Onboarding() {
   useEffect(() => {
     if (isAuthenticated) navigate('/', { replace: true })
   }, [isAuthenticated, navigate])
+
+  function handlePhoneChange(e) {
+    let v = e.target.value.replace(/\D/g, '')
+    if (v.length > 11) v = v.slice(0, 11)
+    if (v.startsWith('8')) v = '7' + v.slice(1)
+    if (!v.startsWith('7') && v.length > 0) v = '7' + v
+    let formatted = ''
+    if (v.length > 0) formatted = '+' + v[0]
+    if (v.length > 1) formatted += ' (' + v.slice(1, 4)
+    if (v.length > 4) formatted += ') ' + v.slice(4, 7)
+    if (v.length > 7) formatted += '-' + v.slice(7, 9)
+    if (v.length > 9) formatted += '-' + v.slice(9, 11)
+    setPhone(formatted)
+  }
 
   function handleDobChange(e) {
     let v = e.target.value.replace(/\D/g, '')
@@ -102,10 +117,13 @@ export default function Onboarding() {
 
   const dobAge = calcAge(dob)
   const isUnderage = dob.length === 10 && dobAge !== null && dobAge < 18
-  const canSubmit = ageConfirmed && personalDataConsent && !isUnderage && !loading
+  const phoneDigits = phone.replace(/\D/g, '')
+  const phoneValid = phoneDigits.length === 11
+  const canSubmit = ageConfirmed && personalDataConsent && !isUnderage && !loading && phoneValid
 
   async function handleRegister() {
     if (!name.trim()) return setError('Введите имя')
+    if (!phoneValid) return setError('Введите номер телефона')
     if (!ageConfirmed) return setError('Подтвердите возраст')
     if (!personalDataConsent) return setError('Необходимо согласие на обработку данных')
     if (isUnderage) return setError('Регистрация доступна только лицам старше 18 лет')
@@ -127,6 +145,8 @@ export default function Onboarding() {
           логин: login,
           пароль_хеш: passwordHash,
           имя: name.trim(),
+          телефон: '+' + phoneDigits,
+          телефон_последние4: phoneDigits.slice(-4),
           дата_рождения: dob && dob.length === 10 ? dob.split('.').reverse().join('-') : null,
           telegram_id: Date.now(),
           уникальный_номер: uniqueNum,
@@ -290,6 +310,17 @@ export default function Onboarding() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Как тебя зовут?"
+                  className="py-3.5 px-4 bg-[rgba(212,175,55,0.05)] border border-[var(--border-gold)] rounded-xl text-[13px] text-[var(--gold-light)] placeholder-[var(--text-muted)] outline-none focus:border-[var(--gold)] font-[inherit]"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[9px] text-[var(--text-muted)] tracking-[1px]">ТЕЛЕФОН</span>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  value={phone}
+                  onChange={handlePhoneChange}
+                  placeholder="+7 (900) 123-45-67"
                   className="py-3.5 px-4 bg-[rgba(212,175,55,0.05)] border border-[var(--border-gold)] rounded-xl text-[13px] text-[var(--gold-light)] placeholder-[var(--text-muted)] outline-none focus:border-[var(--gold)] font-[inherit]"
                 />
               </div>

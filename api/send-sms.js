@@ -37,7 +37,7 @@ export default async function handler(req, res) {
       res.status(200).json({ success: true, message: 'Код отправлен' })
     } else {
       console.error('SMS.ru error:', smsData)
-      res.status(200).json({ success: true, message: 'Код отправлен' }) // В dev всё равно продолжаем
+      res.status(400).json({ success: false, error: 'Не удалось отправить SMS' })
     }
   } catch (error) {
     console.error('Send SMS error:', error)
