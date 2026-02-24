@@ -109,7 +109,7 @@ export default async function handler(req, res) {
 
     // 4. Send Telegram notification to seller
     const botToken = process.env.TG_BOT_TOKEN
-    const chatId = process.env.TG_CHAT_ID
+    const chatId = process.env.TELEGRAM_SELLER_CHAT_ID || process.env.TG_CHAT_ID
     if (botToken && chatId) {
       const itemsList = товары_json.map((i) => `  ${i.название} x${i.количество} — ${i.цена * i.количество}₽`).join('\n')
       const tgText = `🛒 Новый заказ #${order.id}\n\n` +

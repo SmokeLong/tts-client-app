@@ -23,22 +23,6 @@ function getFlavorEmoji(flavor) {
   return '📦'
 }
 
-const TG_BOT_TOKEN = import.meta.env.VITE_TG_BOT_TOKEN || ''
-const TG_CHAT_ID = import.meta.env.VITE_TG_CHAT_ID || ''
-
-async function sendTelegramNotification(text) {
-  if (!TG_BOT_TOKEN || !TG_CHAT_ID) return
-  try {
-    await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: TG_CHAT_ID, text, parse_mode: 'HTML' }),
-    })
-  } catch (e) {
-    console.error('Telegram notification failed:', e)
-  }
-}
-
 const LOCATIONS = [
   { id: 1, name: 'ЦЕНТР', address: 'Куколкина 9', hours: '10:00 - 22:00' },
   { id: 2, name: 'СЕВЕРНЫЙ', address: 'Бульвар Победы 9', hours: '12:00 - 23:00' },
@@ -254,7 +238,11 @@ export default function Cart() {
         (volumeDiscount.totalDiscount > 0 ? `🏷 Скидка за объём: -${volumeDiscount.totalDiscount}₽\n` : '') +
         (orderType === 'preorder' ? '⏳ ПРЕДЗАКАЗ' : '✅ Заказ')
 
-      sendTelegramNotification(tgText).catch(() => {})
+      fetch('/api/notify-telegram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: tgText }),
+      }).catch(() => {})
 
       clearCart()
       navigate('/orders')
