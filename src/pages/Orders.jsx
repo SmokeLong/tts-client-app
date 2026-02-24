@@ -202,9 +202,17 @@ export default function Orders() {
             </div>
           ) : filteredOrders.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16">
-              <div className="text-[48px] mb-4 opacity-50">📋</div>
-              <p className="text-[14px] font-bold gold-gradient-text mb-2">Заказов пока нет</p>
-              <p className="text-[11px] text-[var(--text-muted)]">Ваши заказы появятся здесь</p>
+              <div className="w-20 h-20 rounded-full bg-[rgba(212,175,55,0.1)] flex items-center justify-center mb-5">
+                <span className="text-[40px] opacity-60">📋</span>
+              </div>
+              <p className="text-[14px] font-bold gold-gradient-text mb-2">У вас пока нет заказов</p>
+              <p className="text-[11px] text-[var(--text-muted)] text-center mb-5">Оформите первый заказ из каталога</p>
+              <button
+                onClick={() => navigate('/catalog')}
+                className="px-7 py-3.5 gold-gradient-bg rounded-xl text-[11px] font-bold text-[var(--bg-dark)] press-effect"
+              >
+                ПЕРЕЙТИ В КАТАЛОГ
+              </button>
             </div>
           ) : (
             filteredOrders.map((order) => {
