@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../stores/authStore'
 import { useCartStore } from '../stores/cartStore'
+import { showToast } from '../stores/toastStore'
 import AppShell from '../components/layout/AppShell'
 import PageHeader from '../components/layout/PageHeader'
 
@@ -92,13 +93,21 @@ export default function Orders() {
   }
 
   async function handleDelete(orderId) {
-    const res = await fetch('/api/delete-order', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ order_id: orderId, клиент_id: client.id }),
-    })
-    if (res.ok) {
-      setOrders((prev) => prev.filter((o) => o.id !== orderId))
+    try {
+      const res = await fetch('/api/delete-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: orderId, клиент_id: client.id }),
+      })
+      if (res.ok) {
+        setOrders((prev) => prev.filter((o) => o.id !== orderId))
+        showToast('Заказ удалён', 'success')
+      } else {
+        const data = await res.json()
+        showToast(data.error || 'Ошибка удаления')
+      }
+    } catch {
+      showToast('Ошибка соединения')
     }
   }
 

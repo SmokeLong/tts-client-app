@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './stores/authStore'
+import ToastContainer from './components/ui/Toast'
 
 import Onboarding from './pages/Onboarding'
 import Home from './pages/Home'
@@ -45,6 +46,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <ToastContainer />
       <Routes>
         {/* Public routes */}
         <Route path="/onboarding" element={<Onboarding />} />

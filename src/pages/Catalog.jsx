@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useFiltersStore } from '../stores/filtersStore'
+import { showToast } from '../stores/toastStore'
 import AppShell from '../components/layout/AppShell'
 import Header from '../components/layout/Header'
 import ProductCard from '../components/product/ProductCard'
@@ -66,7 +67,7 @@ export default function Catalog() {
         setInventory(inv)
       }
     } catch (err) {
-      console.error('Catalog load error:', err)
+      showToast('Ошибка загрузки каталога')
     } finally {
       setLoading(false)
     }

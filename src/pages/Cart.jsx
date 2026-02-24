@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useCartStore } from '../stores/cartStore'
 import { useAuthStore } from '../stores/authStore'
+import { showToast } from '../stores/toastStore'
 
 function getFlavorEmoji(flavor) {
   if (!flavor) return '📦'
@@ -192,7 +193,9 @@ export default function Cart() {
       clearCart()
       navigate('/orders')
     } catch (err) {
-      setOrderError(err.message || 'Ошибка оформления заказа')
+      const msg = err.message || 'Ошибка оформления заказа'
+      setOrderError(msg)
+      showToast(msg)
     } finally {
       setSubmitting(false)
     }

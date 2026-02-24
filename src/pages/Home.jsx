@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../stores/authStore'
 import { useCartStore } from '../stores/cartStore'
+import { showToast } from '../stores/toastStore'
 import AppShell from '../components/layout/AppShell'
 import Header from '../components/layout/Header'
 
@@ -56,7 +57,7 @@ export default function Home() {
         setNewProducts(mapped.slice(10, 20).length ? mapped.slice(10, 20) : mapped.slice(0, 8))
       }
     } catch (err) {
-      console.error('Home products load error:', err)
+      showToast('Ошибка загрузки данных')
     } finally {
       setLoading(false)
     }
