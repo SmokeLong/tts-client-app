@@ -5,9 +5,9 @@ const LOCATION_CHAT_ENV = {
   'СЕВЕРНЫЙ': 'TELEGRAM_CHAT_NORTH',
   'ЛБ': 'TELEGRAM_CHAT_LB',
   // Also support numeric IDs
-  1: 'TELEGRAM_CHAT_CENTER',
-  2: 'TELEGRAM_CHAT_NORTH',
-  3: 'TELEGRAM_CHAT_LB',
+  2: 'TELEGRAM_CHAT_CENTER',
+  3: 'TELEGRAM_CHAT_NORTH',
+  4: 'TELEGRAM_CHAT_LB',
 }
 
 async function sendTgMessage(botToken, chatId, text) {

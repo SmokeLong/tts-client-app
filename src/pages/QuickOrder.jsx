@@ -33,9 +33,9 @@ function formatDate(dateStr) {
 }
 
 const POINTS = [
-  { id: 1, name: 'ЦЕНТР' },
-  { id: 2, name: 'СЕВЕРНЫЙ' },
-  { id: 3, name: 'ЛБ' },
+  { id: 2, name: 'ЦЕНТР' },
+  { id: 3, name: 'СЕВЕРНЫЙ' },
+  { id: 4, name: 'ЛБ' },
 ]
 
 export default function QuickOrder() {
@@ -258,9 +258,9 @@ export default function QuickOrder() {
                       <p className="text-[11px] font-bold text-[var(--gold-light)] truncate">{itemsText || 'Заказ'}</p>
                       <p className="text-[9px] text-[var(--text-muted)] mt-0.5">
                         {formatDate(order.created_at)} • {
-                          order.точка_id === 1 ? 'ЦЕНТР' :
-                          order.точка_id === 2 ? 'СЕВЕРНЫЙ' :
-                          order.точка_id === 3 ? 'ЛБ' : '—'
+                          order.точка_id === 2 ? 'ЦЕНТР' :
+                          order.точка_id === 3 ? 'СЕВЕРНЫЙ' :
+                          order.точка_id === 4 ? 'ЛБ' : '—'
                         }
                       </p>
                     </div>

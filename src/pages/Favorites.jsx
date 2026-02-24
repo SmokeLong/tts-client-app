@@ -68,9 +68,9 @@ export default function Favorites() {
         for (const inv of inventory) {
           if (!sm[inv.товар_id]) sm[inv.товар_id] = {}
           // Map point IDs to labels
-          if (inv.точка_id === 1) sm[inv.товар_id].center = inv.количество
-          if (inv.точка_id === 2) sm[inv.товар_id].north = inv.количество
-          if (inv.точка_id === 3) sm[inv.товар_id].lb = inv.количество
+          if (inv.точка_id === 2) sm[inv.товар_id].center = inv.количество
+          if (inv.точка_id === 3) sm[inv.товар_id].north = inv.количество
+          if (inv.точка_id === 4) sm[inv.товар_id].lb = inv.количество
         }
         setStockMap(sm)
       }

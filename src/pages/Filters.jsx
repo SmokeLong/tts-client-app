@@ -17,9 +17,9 @@ const STRENGTHS = [
 ]
 
 const POINTS = [
-  { id: 1, name: 'ЦЕНТР' },
-  { id: 2, name: 'СЕВЕРНЫЙ' },
-  { id: 3, name: 'ЛБ' },
+  { id: 2, name: 'ЦЕНТР' },
+  { id: 3, name: 'СЕВЕРНЫЙ' },
+  { id: 4, name: 'ЛБ' },
 ]
 
 const EFFECT_TYPES = ['РЕЗКИЙ', 'ПЛАВНЫЙ']

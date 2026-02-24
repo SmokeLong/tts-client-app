@@ -83,9 +83,9 @@ function stockLabel(qty) {
 }
 
 const LOCATIONS = [
-  { id: 1, name: 'ЦЕНТР', address: 'У Атмосферы' },
-  { id: 2, name: 'СЕВЕРНЫЙ', address: '17 квартал' },
-  { id: 3, name: 'ЛБ', address: 'Вкусно И. на Димитрова' },
+  { id: 2, name: 'ЦЕНТР', address: 'У Атмосферы' },
+  { id: 3, name: 'СЕВЕРНЫЙ', address: '17 квартал' },
+  { id: 4, name: 'ЛБ', address: 'Вкусно И. на Димитрова' },
 ]
 
 export default function ProductPage() {

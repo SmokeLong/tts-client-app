@@ -24,9 +24,9 @@ function getFlavorEmoji(flavor) {
 }
 
 const LOCATIONS = [
-  { id: 1, name: 'ЦЕНТР', address: 'Куколкина 9', hours: '10:00 - 22:00' },
-  { id: 2, name: 'СЕВЕРНЫЙ', address: 'Бульвар Победы 9', hours: '12:00 - 23:00' },
-  { id: 3, name: 'ЛБ', address: 'Ленинский пр-кт 117', hours: '11:00 - 22:00' },
+  { id: 2, name: 'ЦЕНТР', address: 'Куколкина 9', hours: '10:00 - 22:00' },
+  { id: 3, name: 'СЕВЕРНЫЙ', address: 'Бульвар Победы 9', hours: '12:00 - 23:00' },
+  { id: 4, name: 'ЛБ', address: 'Ленинский пр-кт 117', hours: '11:00 - 22:00' },
 ]
 
 export default function Cart() {
