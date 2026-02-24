@@ -6,6 +6,7 @@ import { showToast } from '../stores/toastStore'
 import AppShell from '../components/layout/AppShell'
 import Header from '../components/layout/Header'
 import ProductCard from '../components/product/ProductCard'
+import PullToRefresh from '../components/ui/PullToRefresh'
 
 function mapProduct(raw) {
   return {
@@ -159,6 +160,7 @@ export default function Catalog() {
         </button>
       } />
 
+      <PullToRefresh onRefresh={loadData}>
       <div className="px-4 py-3 animate-fadeIn">
         {/* Search */}
         <div className="relative mb-3">
@@ -267,6 +269,7 @@ export default function Catalog() {
           </>
         )}
       </div>
+      </PullToRefresh>
     </AppShell>
   )
 }

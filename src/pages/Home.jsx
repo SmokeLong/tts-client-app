@@ -6,6 +6,7 @@ import { useCartStore } from '../stores/cartStore'
 import { showToast } from '../stores/toastStore'
 import AppShell from '../components/layout/AppShell'
 import Header from '../components/layout/Header'
+import PullToRefresh from '../components/ui/PullToRefresh'
 
 function getFlavorEmoji(flavor) {
   if (!flavor) return '📦'
@@ -106,6 +107,7 @@ export default function Home() {
     <AppShell>
       <Header showSearch showCart />
 
+      <PullToRefresh onRefresh={loadProducts}>
       <div className="px-4 py-4 space-y-4 animate-fadeIn">
         {/* Profile Card */}
         <div
@@ -319,6 +321,7 @@ export default function Home() {
           </button>
         </div>
       </div>
+      </PullToRefresh>
     </AppShell>
   )
 }
