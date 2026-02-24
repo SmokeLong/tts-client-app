@@ -119,7 +119,7 @@ export default function Catalog() {
   function getStock(productId) {
     const inv = inventory[productId]
     if (!inv) return null
-    return { center: inv[1] ?? 0, north: inv[2] ?? 0, lb: inv[3] ?? 0 }
+    return { center: inv[2] ?? 0, north: inv[3] ?? 0, lb: inv[4] ?? 0 }
   }
 
   function getBrandEmoji(brandName) {

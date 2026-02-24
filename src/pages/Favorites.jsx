@@ -53,6 +53,7 @@ export default function Favorites() {
       .from('товары')
       .select('*')
       .in('id', favoriteIds)
+      .eq('активен', true)
 
     if (rawProducts) {
       setProducts(rawProducts.map(mapProduct))

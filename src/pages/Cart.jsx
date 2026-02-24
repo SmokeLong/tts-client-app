@@ -57,6 +57,7 @@ export default function Cart() {
   const [deliveryType, setDeliveryType] = useState('pickup') // 'pickup' | 'delivery'
   const [inventory, setInventory] = useState({})
   const [submitting, setSubmitting] = useState(false)
+  const [orderError, setOrderError] = useState('')
   const [tcoinsInput, setTcoinsInput] = useState(String(tcoinsToSpend))
 
   const totalQty = items.reduce((sum, i) => sum + i.qty, 0)
@@ -138,6 +139,7 @@ export default function Cart() {
   async function handleCheckout() {
     if (items.length === 0 || submitting) return
     setSubmitting(true)
+    setOrderError('')
 
     try {
       const товары_json = items.map((i) => ({
@@ -190,7 +192,7 @@ export default function Cart() {
       clearCart()
       navigate('/orders')
     } catch (err) {
-      alert(err.message)
+      setOrderError(err.message || 'Ошибка оформления заказа')
     } finally {
       setSubmitting(false)
     }
@@ -554,6 +556,14 @@ export default function Cart() {
               <span className="text-[18px] font-extrabold text-[var(--gold-light)]">{total} ₽</span>
             </div>
           </div>
+
+          {orderError && (
+            <div className="mb-2.5 p-2.5 bg-[rgba(248,113,113,0.1)] border border-[rgba(248,113,113,0.3)] rounded-lg flex items-center gap-2.5">
+              <span className="text-[16px]">❌</span>
+              <span className="text-[10px] text-[var(--red)] flex-1">{orderError}</span>
+              <button onClick={() => setOrderError('')} className="text-[var(--red)] text-[14px] press-effect">✕</button>
+            </div>
+          )}
 
           <button
             onClick={handleCheckout}
