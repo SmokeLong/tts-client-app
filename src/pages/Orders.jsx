@@ -141,7 +141,7 @@ export default function Orders() {
 
   return (
     <AppShell>
-      <PageHeader title="ИСТОРИЯ ЗАКАЗОВ" />
+      <PageHeader title="ИСТОРИЯ ЗАКАЗОВ" showCart />
 
       <div className="animate-fadeIn">
         {/* Stats Bar */}

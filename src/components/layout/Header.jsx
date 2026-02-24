@@ -3,7 +3,7 @@ import { useCartStore } from '../../stores/cartStore'
 
 export default function Header({ title, showBack = false, showSearch = false, showCart = false, rightActions }) {
   const navigate = useNavigate()
-  const cartCount = useCartStore((s) => s.items.length)
+  const cartCount = useCartStore((s) => s.items.reduce((sum, i) => sum + i.qty, 0))
 
   return (
     <header className="sticky top-0 z-40 bg-[rgba(10,9,8,0.95)] backdrop-blur-xl border-b border-[var(--border-gold)]">

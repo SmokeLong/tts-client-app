@@ -106,7 +106,7 @@ export default function Brand() {
 
   return (
     <AppShell>
-      <PageHeader title={decodedBrand} />
+      <PageHeader title={decodedBrand} showCart />
       <div className="px-4 py-4 animate-fadeIn">
         {loading ? (
           <div className="flex items-center justify-center py-20">

@@ -109,6 +109,7 @@ export default function Favorites() {
     <AppShell>
       <PageHeader
         title="ИЗБРАННОЕ"
+        showCart
         rightAction={
           <span className="text-[11px] text-[var(--text-muted)]">{favoriteIds.length} товаров</span>
         }

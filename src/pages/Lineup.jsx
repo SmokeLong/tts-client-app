@@ -79,7 +79,7 @@ export default function Lineup() {
 
   return (
     <AppShell>
-      <PageHeader title={title} />
+      <PageHeader title={title} showCart />
       <div className="px-4 py-4 animate-fadeIn">
         {/* Header info */}
         <div className="mb-4">
