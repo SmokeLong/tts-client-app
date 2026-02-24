@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
-  process.env.VITE_SUPABASE_ANON_KEY
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY
 )
 
 export default async function handler(req, res) {
@@ -39,12 +39,17 @@ export default async function handler(req, res) {
     }
 
     // Soft delete — set status to "Удалён"
-    const { error: updateError } = await supabase
+    const { data: updated, error: updateError } = await supabase
       .from('заказы')
       .update({ статус: 'Удалён' })
       .eq('id', order_id)
+      .select('id, статус')
 
     if (updateError) throw updateError
+
+    if (!updated || updated.length === 0) {
+      return res.status(500).json({ error: 'Не удалось обновить заказ (проверьте RLS политики)' })
+    }
 
     return res.status(200).json({ success: true })
   } catch (error) {
