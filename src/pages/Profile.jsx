@@ -55,13 +55,35 @@ export default function Profile() {
   const [totalSpend, setTotalSpend] = useState(0)
   const [favoriteProduct, setFavoriteProduct] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [avatarUrl, setAvatarUrl] = useState(null)
   const [showTcoinsInfo, setShowTcoinsInfo] = useState(false)
   const [showInvite, setShowInvite] = useState(false)
   const [showSupport, setShowSupport] = useState(false)
+  const updateClient = useAuthStore((s) => s.updateClient)
 
   useEffect(() => {
     if (client?.id) loadProfileData()
     else setLoading(false)
+  }, [client?.id])
+
+  useEffect(() => {
+    if (client?.аватар) {
+      setAvatarUrl(client.аватар)
+    } else if (client?.telegram_id && client?.id) {
+      fetch('/api/get-avatar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_id: client.id, telegram_id: client.telegram_id }),
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.avatar) {
+            setAvatarUrl(data.avatar)
+            updateClient({ аватар: data.avatar })
+          }
+        })
+        .catch(() => {})
+    }
   }, [client?.id])
 
   async function loadProfileData() {
@@ -209,8 +231,12 @@ export default function Profile() {
           </div>
 
           <div className="flex items-center gap-4 mb-4">
-            <div className="w-[70px] h-[70px] rounded-full gold-gradient-bg flex items-center justify-center text-[28px] font-black text-[var(--bg-dark)] border-[3px] border-[var(--gold)] shadow-lg shadow-[rgba(212,175,55,0.3)]">
-              {initial}
+            <div className="w-[70px] h-[70px] rounded-full gold-gradient-bg flex items-center justify-center text-[28px] font-black text-[var(--bg-dark)] border-[3px] border-[var(--gold)] shadow-lg shadow-[rgba(212,175,55,0.3)] overflow-hidden">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="" className="w-full h-full object-cover" onError={() => setAvatarUrl(null)} />
+              ) : (
+                initial
+              )}
             </div>
             <div>
               <p className="text-[18px] font-extrabold text-[var(--gold-light)] tracking-wider">{name.toUpperCase()}</p>
