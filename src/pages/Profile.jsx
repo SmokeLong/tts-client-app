@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../stores/authStore'
+import { showToast } from '../stores/toastStore'
 import AppShell from '../components/layout/AppShell'
 import Header from '../components/layout/Header'
 
@@ -54,6 +55,9 @@ export default function Profile() {
   const [totalSpend, setTotalSpend] = useState(0)
   const [favoriteProduct, setFavoriteProduct] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [showTcoinsInfo, setShowTcoinsInfo] = useState(false)
+  const [showInvite, setShowInvite] = useState(false)
+  const [showSupport, setShowSupport] = useState(false)
 
   useEffect(() => {
     if (client?.id) loadProfileData()
@@ -146,8 +150,8 @@ export default function Profile() {
   const menuItems = [
     { icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>, title: 'ИСТОРИЯ ЗАКАЗОВ', desc: `${ordersCount} заказ(ов)`, path: '/orders' },
     { icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>, title: 'ИЗБРАННОЕ', desc: 'Сохранённые товары', path: '/favorites' },
-    { icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>, title: 'ПРИГЛАСИТЬ ДРУГА', desc: 'Получи 100 ткоинов', path: null },
-    { icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>, title: 'ПОДДЕРЖКА', desc: 'Ответим быстро', path: null },
+    { icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>, title: 'ПРИГЛАСИТЬ ДРУГА', desc: 'Получи 100 ткоинов', path: null, onClick: () => setShowInvite(true) },
+    { icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>, title: 'ПОДДЕРЖКА', desc: 'Ответим быстро', path: null, onClick: () => setShowSupport(true) },
     { icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>, title: 'ПРАВИЛА И СКИДКИ', desc: 'Как работает система', path: null },
   ]
 
@@ -273,6 +277,9 @@ export default function Profile() {
               <button className="px-3.5 py-2 bg-[rgba(212,175,55,0.1)] border border-[var(--border-gold)] rounded-lg text-[9px] font-bold text-[var(--gold)] press-effect">
                 ИСТОРИЯ
               </button>
+              <button onClick={() => setShowTcoinsInfo(true)} className="px-3.5 py-2 bg-[rgba(212,175,55,0.1)] border border-[var(--border-gold)] rounded-lg text-[9px] font-bold text-[var(--gold)] press-effect">
+                КАК РАБОТАЕТ
+              </button>
             </div>
           </div>
 
@@ -285,9 +292,12 @@ export default function Profile() {
               <p className="text-[12px] font-bold text-[var(--gold-light)]">КУБИК УДАЧИ</p>
               <p className="text-[9px] text-[var(--text-muted)] mt-0.5">Шанс получить скидку 15% или 50%</p>
             </div>
-            <button className="px-4 py-2.5 gold-gradient-bg rounded-lg text-[10px] font-bold text-[var(--bg-dark)] press-effect">
-              БРОСИТЬ
-            </button>
+            <div className="flex flex-col items-center gap-1">
+              <button disabled className="px-4 py-2.5 bg-[rgba(255,255,255,0.1)] rounded-lg text-[10px] font-bold text-[var(--text-muted)] opacity-50 cursor-not-allowed">
+                БРОСИТЬ
+              </button>
+              <span className="text-[8px] text-[var(--text-muted)]">Скоро</span>
+            </div>
           </div>
         </div>
 
@@ -402,7 +412,7 @@ export default function Profile() {
             {menuItems.map((item) => (
               <button
                 key={item.title}
-                onClick={() => item.path && navigate(item.path)}
+                onClick={() => item.onClick ? item.onClick() : item.path && navigate(item.path)}
                 className="p-3.5 bg-[var(--bg-card)] border border-[var(--border-gold)] rounded-xl flex items-center gap-3.5 press-effect transition-all hover:border-[var(--gold)] hover:bg-[rgba(212,175,55,0.05)] w-full text-left"
               >
                 <div className="w-10 h-10 rounded-[10px] bg-[rgba(212,175,55,0.1)] flex items-center justify-center shrink-0">
@@ -420,6 +430,134 @@ export default function Profile() {
           </div>
         </div>
       </div>
+
+      {/* TCoins Info Modal */}
+      {showTcoinsInfo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setShowTcoinsInfo(false)}>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <div className="relative bg-[var(--bg-card)] border border-[var(--gold)] rounded-[18px] p-6 max-w-sm w-full animate-fadeIn" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setShowTcoinsInfo(false)} className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--gold)]">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+            </button>
+            <div className="text-center mb-4">
+              <span className="text-[28px]">🪙</span>
+              <h3 className="text-[14px] font-bold text-[var(--gold)] tracking-[2px] mt-2">КАК РАБОТАЮТ ТКОИНЫ</h3>
+            </div>
+            <div className="space-y-4 text-[11px] text-[var(--gold-light)] leading-relaxed">
+              <div className="text-center">
+                <p className="text-[16px] font-black text-[var(--gold)]">1 ТКОИН = 1 РУБЛЬ</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-[var(--gold)] tracking-[1.5px] mb-1.5">НАЧИСЛЕНИЕ:</p>
+                <ul className="space-y-1 text-[var(--text-muted)]">
+                  <li>1.5% от суммы заказа (без доп.скидок)</li>
+                  <li>0.5% от заказов друзей по вашей ссылке</li>
+                  <li>Пополнение наличными в магазине</li>
+                </ul>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-[var(--gold)] tracking-[1.5px] mb-1.5">ИСПОЛЬЗОВАНИЕ:</p>
+                <ul className="space-y-1 text-[var(--text-muted)]">
+                  <li>Списать как скидку</li>
+                  <li>Бросить кубик удачи</li>
+                  <li>Участие в аукционе</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Invite Friend Modal */}
+      {showInvite && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setShowInvite(false)}>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <div className="relative bg-[var(--bg-card)] border border-[var(--gold)] rounded-[18px] p-6 max-w-sm w-full animate-fadeIn" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setShowInvite(false)} className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--gold)]">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+            </button>
+            <div className="text-center mb-5">
+              <span className="text-[28px]">🤝</span>
+              <h3 className="text-[14px] font-bold text-[var(--gold)] tracking-[2px] mt-2">ПРИГЛАСИТЬ ДРУГА</h3>
+              <p className="text-[10px] text-[var(--text-muted)] mt-1">Получите 0.5% от заказов друзей</p>
+            </div>
+            <div className="mb-4">
+              <p className="text-[9px] text-[var(--text-muted)] tracking-wider mb-1.5">ВАША ССЫЛКА:</p>
+              <div className="flex items-center gap-2 p-3 bg-[rgba(212,175,55,0.05)] border border-[var(--border-gold)] rounded-xl">
+                <p className="text-[11px] text-[var(--gold-light)] flex-1 truncate select-all">tts-shop.agency/?ref={uid}</p>
+                <button
+                  onClick={() => { navigator.clipboard?.writeText(`https://tts-shop.agency/?ref=${uid}`); showToast('Ссылка скопирована', 'success') }}
+                  className="shrink-0 px-2.5 py-1.5 bg-[rgba(212,175,55,0.15)] border border-[var(--border-gold)] rounded-lg text-[9px] font-bold text-[var(--gold)] press-effect"
+                >
+                  КОПИРОВАТЬ
+                </button>
+              </div>
+            </div>
+            <a
+              href={`https://t.me/share/url?url=${encodeURIComponent('https://tts-shop.agency/?ref=' + uid)}&text=${encodeURIComponent('Я в TTS Shop — крутой снюс с доставкой по Мурманску 🔥 Переходи, получи бонус на первый заказ! 💰')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full py-3.5 bg-[#2AABEE] rounded-xl text-[11px] font-bold text-white tracking-[1px] text-center press-effect"
+            >
+              ПОДЕЛИТЬСЯ В TELEGRAM
+            </a>
+          </div>
+        </div>
+      )}
+
+      {/* Support Modal */}
+      {showSupport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setShowSupport(false)}>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <div className="relative bg-[var(--bg-card)] border border-[var(--gold)] rounded-[18px] p-6 max-w-sm w-full animate-fadeIn" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setShowSupport(false)} className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--gold)]">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+            </button>
+            <div className="text-center mb-5">
+              <span className="text-[28px]">💬</span>
+              <h3 className="text-[14px] font-bold text-[var(--gold)] tracking-[2px] mt-2">ПОДДЕРЖКА</h3>
+            </div>
+            <div className="flex flex-col gap-2.5">
+              <a
+                href="https://t.me/TTS_SHOP_BOT?start=SUPPORT_quality"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-3.5 bg-[var(--bg-card)] border border-[var(--border-gold)] rounded-xl flex items-center gap-3 press-effect hover:border-[var(--gold)] transition-all"
+              >
+                <span className="text-[20px]">📦</span>
+                <div className="flex-1">
+                  <p className="text-[11px] font-bold text-[var(--gold-light)]">Проблема с качеством товара</p>
+                  <p className="text-[9px] text-[var(--text-muted)] mt-0.5">Брак, несоответствие, повреждение</p>
+                </div>
+              </a>
+              <a
+                href="https://t.me/TTS_SHOP_BOT?start=SUPPORT_complaint"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-3.5 bg-[var(--bg-card)] border border-[var(--border-gold)] rounded-xl flex items-center gap-3 press-effect hover:border-[var(--gold)] transition-all"
+              >
+                <span className="text-[20px]">🔒</span>
+                <div className="flex-1">
+                  <p className="text-[11px] font-bold text-[var(--gold-light)]">Анонимная жалоба на сотрудника</p>
+                  <p className="text-[9px] text-[var(--text-muted)] mt-0.5">Конфиденциально и безопасно</p>
+                </div>
+              </a>
+              <a
+                href="https://t.me/TTS_SHOP_BOT?start=SUPPORT_collab"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-3.5 bg-[var(--bg-card)] border border-[var(--border-gold)] rounded-xl flex items-center gap-3 press-effect hover:border-[var(--gold)] transition-all"
+              >
+                <span className="text-[20px]">🤝</span>
+                <div className="flex-1">
+                  <p className="text-[11px] font-bold text-[var(--gold-light)]">Предложение сотрудничества</p>
+                  <p className="text-[9px] text-[var(--text-muted)] mt-0.5">Партнёрство и бизнес</p>
+                </div>
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </AppShell>
   )
 }

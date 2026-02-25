@@ -34,6 +34,18 @@ const CATEGORIES = [
   { label: '🍃 LIGHT', filter: 'light' },
 ]
 
+const CYR_TO_LAT = {
+  'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'e','ж':'zh','з':'z',
+  'и':'i','й':'y','к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r',
+  'с':'s','т':'t','у':'u','ф':'f','х':'h','ц':'ts','ч':'ch','ш':'sh',
+  'щ':'sch','ъ':'','ы':'y','ь':'','э':'e','ю':'yu','я':'ya',
+}
+
+function normalize(str) {
+  if (!str) return ''
+  return str.toLowerCase().split('').map(c => CYR_TO_LAT[c] || c).join('').replace(/q/g, 'k')
+}
+
 export default function Catalog() {
   const navigate = useNavigate()
   const [products, setProducts] = useState([])
@@ -93,14 +105,16 @@ export default function Catalog() {
     let result = products
 
     if (searchQuery) {
-      const q = searchQuery.toLowerCase()
-      result = result.filter(
-        (p) =>
-          p.name?.toLowerCase().includes(q) ||
-          p.brand?.toLowerCase().includes(q) ||
-          p.lineup?.toLowerCase().includes(q) ||
-          p.flavor?.toLowerCase().includes(q)
-      )
+      const words = searchQuery.trim().toLowerCase().split(/\s+/).filter(Boolean)
+      result = result.filter((p) => {
+        const fields = [p.name, p.brand, p.lineup, p.flavor].filter(Boolean).join(' ')
+        const fieldsLower = fields.toLowerCase()
+        const fieldsNorm = normalize(fields)
+        return words.every((word) => {
+          const wordNorm = normalize(word)
+          return fieldsLower.includes(word) || fieldsNorm.includes(wordNorm)
+        })
+      })
     }
 
     if (activeCategory === 'strong') {
@@ -172,8 +186,18 @@ export default function Catalog() {
             value={searchQuery}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Поиск по каталогу..."
-            className="w-full py-3.5 pl-12 pr-4 bg-[linear-gradient(145deg,rgba(25,25,25,0.9),rgba(15,15,15,0.95))] border border-[var(--border-gold)] rounded-xl text-[14px] text-[var(--gold)] placeholder-[rgba(212,175,55,0.4)] outline-none focus:border-[rgba(212,175,55,0.5)] focus:shadow-[0_0_20px_rgba(212,175,55,0.15)] transition-all font-[inherit]"
+            className="w-full py-3.5 pl-12 pr-10 bg-[linear-gradient(145deg,rgba(25,25,25,0.9),rgba(15,15,15,0.95))] border border-[var(--border-gold)] rounded-xl text-[14px] text-[var(--gold)] placeholder-[rgba(212,175,55,0.4)] outline-none focus:border-[rgba(212,175,55,0.5)] focus:shadow-[0_0_20px_rgba(212,175,55,0.15)] transition-all font-[inherit]"
           />
+          {searchQuery && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--gold)] transition-colors"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
 
         {/* Categories */}
