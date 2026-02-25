@@ -1,11 +1,5 @@
 {
   "rewrites": [
     { "source": "/(.*)", "destination": "/" }
-  ],
-  "crons": [
-    {
-      "path": "/api/cron-stock-notify",
-      "schedule": "*/30 * * * *"
-    }
   ]
 }
