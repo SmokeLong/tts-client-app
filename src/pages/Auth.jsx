@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
 import { showToast } from '../stores/toastStore'
@@ -16,17 +16,18 @@ function formatPhone(value) {
   return result
 }
 
-// Modes: login, recovery, recovery-sms, recovery-pass
+// Modes: login, recovery, recovery-verify, recovery-pass
 export default function Auth() {
   const [mode, setMode] = useState('login')
   const [phone, setPhone] = useState('+7')
   const [password, setPassword] = useState('')
-  const [smsCode, setSmsCode] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [newPasswordRepeat, setNewPasswordRepeat] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [countdown, setCountdown] = useState(0)
+  const [verifyToken, setVerifyToken] = useState('')
+  const [verifyUrl, setVerifyUrl] = useState('')
+  const pollingRef = useRef(null)
   const navigate = useNavigate()
   const setAuth = useAuthStore((s) => s.setAuth)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
@@ -35,11 +36,27 @@ export default function Auth() {
     if (isAuthenticated) navigate('/', { replace: true })
   }, [isAuthenticated, navigate])
 
+  // Polling for Telegram verification
   useEffect(() => {
-    if (countdown <= 0) return
-    const t = setTimeout(() => setCountdown(countdown - 1), 1000)
-    return () => clearTimeout(t)
-  }, [countdown])
+    if (mode !== 'recovery-verify' || !verifyToken) return
+
+    pollingRef.current = setInterval(async () => {
+      try {
+        const res = await fetch('/api/check-verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: verifyToken }),
+        })
+        const data = await res.json()
+        if (data.verified) {
+          clearInterval(pollingRef.current)
+          setMode('recovery-pass')
+        }
+      } catch {}
+    }, 3000)
+
+    return () => clearInterval(pollingRef.current)
+  }, [mode, verifyToken])
 
   const resetError = useCallback(() => setError(''), [])
 
@@ -68,44 +85,26 @@ export default function Auth() {
     }
   }
 
-  // --- SEND SMS (recovery) ---
-  async function handleSendSms() {
+  // --- RECOVERY: Create Telegram verify token ---
+  async function handleRecoveryTelegram() {
     const digits = phone.replace(/\D/g, '')
     if (digits.length < 11) return setError('Введите корректный номер')
     setLoading(true)
     resetError()
     try {
-      const res = await fetch('/api/send-sms', {
+      const res = await fetch('/api/create-verify-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ телефон: digits }),
+        body: JSON.stringify({
+          тип: 'recovery',
+          данные: { телефон: digits },
+        }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Ошибка отправки')
-      setCountdown(60)
-      setMode('recovery-sms')
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // --- VERIFY SMS ---
-  async function handleVerifySms() {
-    if (smsCode.length !== 4) return setError('Введите 4-значный код')
-    const digits = phone.replace(/\D/g, '')
-    setLoading(true)
-    resetError()
-    try {
-      const res = await fetch('/api/verify-sms', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ телефон: digits, код: smsCode }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Неверный код')
-      setMode('recovery-pass')
+      if (!res.ok) throw new Error(data.error || 'Ошибка запроса')
+      setVerifyToken(data.token)
+      setVerifyUrl(data.verify_url)
+      setMode('recovery-verify')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -125,7 +124,11 @@ export default function Auth() {
       const res = await fetch('/api/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ телефон: digits, пароль: newPassword }),
+        body: JSON.stringify({
+          телефон: digits,
+          пароль: newPassword,
+          verify_token: verifyToken,
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Ошибка сброса пароля')
@@ -134,7 +137,8 @@ export default function Auth() {
       setPassword('')
       setNewPassword('')
       setNewPasswordRepeat('')
-      setSmsCode('')
+      setVerifyToken('')
+      setVerifyUrl('')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -145,7 +149,7 @@ export default function Auth() {
   const titles = {
     'login': 'Вход',
     'recovery': 'Восстановление',
-    'recovery-sms': 'Подтверждение',
+    'recovery-verify': 'Подтверждение',
     'recovery-pass': 'Новый пароль',
   }
 
@@ -158,9 +162,14 @@ export default function Auth() {
             {mode !== 'login' && (
               <button onClick={() => {
                 resetError()
-                if (mode === 'recovery-sms') setMode('recovery')
-                else if (mode === 'recovery-pass') setMode('recovery-sms')
-                else setMode('login')
+                if (mode === 'recovery-verify') {
+                  clearInterval(pollingRef.current)
+                  setMode('recovery')
+                } else if (mode === 'recovery-pass') {
+                  setMode('recovery')
+                } else {
+                  setMode('login')
+                }
               }} className="press-effect p-1">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="15 18 9 12 15 6" />
@@ -224,37 +233,40 @@ export default function Auth() {
                   type="tel"
                 />
                 {error && <ErrorMsg text={error} />}
-                <GoldBtn text={loading ? 'ОТПРАВКА...' : 'ПОЛУЧИТЬ КОД'} disabled={loading} onClick={handleSendSms} />
+                <GoldBtn
+                  text={loading ? 'ОТПРАВКА...' : 'ВОССТАНОВИТЬ ЧЕРЕЗ TELEGRAM'}
+                  disabled={loading}
+                  onClick={handleRecoveryTelegram}
+                />
               </div>
             )}
 
-            {/* RECOVERY: SMS */}
-            {mode === 'recovery-sms' && (
-              <div className="space-y-3">
-                <p className="text-[11px] text-[var(--text-muted)] text-center mb-2">
-                  Код отправлен на {phone}
+            {/* RECOVERY: TELEGRAM VERIFY */}
+            {mode === 'recovery-verify' && (
+              <div className="space-y-4 text-center">
+                <p className="text-[11px] text-[var(--text-muted)]">
+                  Подтвердите личность через Telegram
                 </p>
-                <Input
-                  placeholder="Введите 4-значный код"
-                  value={smsCode}
-                  onChange={setSmsCode}
-                  maxLength={4}
-                  inputMode="numeric"
-                  autoFocus
-                />
-                {error && <ErrorMsg text={error} />}
-                <GoldBtn text={loading ? 'ПРОВЕРКА...' : 'ПОДТВЕРДИТЬ'} disabled={loading} onClick={handleVerifySms} />
-                <div className="text-center pt-2">
-                  {countdown > 0 ? (
-                    <span className="text-[10px] text-[var(--text-muted)]">
-                      Повторная отправка через {countdown}с
-                    </span>
-                  ) : (
-                    <button onClick={handleSendSms} className="text-[10px] text-[var(--gold)] hover:text-[var(--gold-light)]">
-                      Отправить код повторно
-                    </button>
-                  )}
+
+                <a
+                  href={verifyUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full gold-gradient-bg text-[var(--bg-dark)] font-bold text-[12px] tracking-[2px] py-4 rounded-[14px] press-effect text-center"
+                >
+                  ОТКРЫТЬ TELEGRAM
+                </a>
+
+                <div className="flex items-center justify-center gap-2 py-4">
+                  <div className="w-4 h-4 border-2 border-[var(--gold)] border-t-transparent rounded-full animate-spin" />
+                  <span className="text-[11px] text-[var(--text-muted)]">
+                    Ожидание подтверждения...
+                  </span>
                 </div>
+
+                <p className="text-[10px] text-[var(--text-muted)]">
+                  Нажмите кнопку выше, затем подтвердите в боте @TTS_SHOP_BOT
+                </p>
               </div>
             )}
 

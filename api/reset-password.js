@@ -13,10 +13,10 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end()
 
   try {
-    const { телефон, пароль } = req.body
+    const { телефон, пароль, verify_token } = req.body
 
-    if (!телефон || !пароль) {
-      return res.status(400).json({ error: 'Телефон и пароль обязательны' })
+    if (!телефон || !пароль || !verify_token) {
+      return res.status(400).json({ error: 'Телефон, пароль и verify_token обязательны' })
     }
     if (пароль.length < 6) {
       return res.status(400).json({ error: 'Минимум 6 символов' })
@@ -24,6 +24,20 @@ export default async function handler(req, res) {
 
     const phoneClean = телефон.replace(/\D/g, '')
     const phoneFormatted = '+' + phoneClean
+
+    // Проверяем verify_token — должен быть подтверждённый recovery токен
+    const { data: verify } = await supabase
+      .from('telegram_верификация')
+      .select('id')
+      .eq('токен', verify_token)
+      .eq('тип', 'recovery')
+      .eq('телефон', phoneFormatted)
+      .eq('подтверждён', true)
+      .single()
+
+    if (!verify) {
+      return res.status(403).json({ error: 'Токен верификации недействителен' })
+    }
 
     // Ищем клиента по телефону
     const { data: client } = await supabase
@@ -45,6 +59,9 @@ export default async function handler(req, res) {
       .eq('id', client.id)
 
     if (error) throw error
+
+    // Удаляем использованный токен
+    await supabase.from('telegram_верификация').delete().eq('id', verify.id)
 
     res.status(200).json({ success: true })
   } catch (error) {
