@@ -33,19 +33,23 @@ function formatDate(dateStr) {
 }
 
 const POINTS = [
-  { id: 2, name: 'ЦЕНТР' },
-  { id: 3, name: 'СЕВЕРНЫЙ' },
-  { id: 4, name: 'ЛБ' },
+  { id: 2, name: 'ЦЕНТР', icon: '🏪' },
+  { id: 3, name: 'СЕВЕРНЫЙ', icon: '🏪' },
+  { id: 4, name: 'ЛБ', icon: '🏪' },
+  { id: 'delivery', name: 'ДОСТАВКА', icon: '🚗' },
+  { id: 'post', name: 'ПОЧТА', icon: '📦' },
 ]
 
 export default function QuickOrder() {
   const navigate = useNavigate()
   const client = useAuthStore((s) => s.client)
   const addItem = useCartStore((s) => s.addItem)
+  const clearCart = useCartStore((s) => s.clearCart)
   const setPickupPoint = useCartStore((s) => s.setPickupPoint)
+  const setPaymentMethod = useCartStore((s) => s.setPaymentMethod)
   const favoriteIds = useFavoritesStore((s) => s.ids)
 
-  const [selectedPoint, setSelectedPoint] = useState(1)
+  const [selectedPoint, setSelectedPoint] = useState(2)
   const [lastOrders, setLastOrders] = useState([])
   const [frequentProducts, setFrequentProducts] = useState([])
   const [pointStock, setPointStock] = useState({}) // { productId: quantity }
@@ -112,22 +116,32 @@ export default function QuickOrder() {
 
   function handlePointSelect(pointId) {
     setSelectedPoint(pointId)
-    setPickupPoint(pointId)
-    loadPointStock(pointId)
+    if (typeof pointId === 'number') {
+      setPickupPoint(pointId)
+      loadPointStock(pointId)
+    }
   }
 
   function handleRepeat(order) {
+    clearCart()
     const items = order.товары_json || []
     for (const item of items) {
       for (let i = 0; i < (item.количество || 1); i++) {
         addItem({
           id: item.id,
           name: item.название,
-          priceCash: item.цена,
-          priceCard: item.цена,
+          priceCash: item.цена_нал || item.цена,
+          priceCard: item.цена_безнал || item.цена,
         })
       }
     }
+    // Restore pickup point
+    if (order.точка_id) setPickupPoint(order.точка_id)
+    // Restore payment method
+    const pm = order.тип_оплаты
+    if (pm === 'Наличные') setPaymentMethod('cash')
+    else if (pm === 'Безналичный') setPaymentMethod('card')
+    else if (pm === 'Смешанный') setPaymentMethod('mixed')
     navigate('/cart')
   }
 
@@ -217,7 +231,7 @@ export default function QuickOrder() {
                     : 'bg-[var(--bg-card)] border border-[var(--border-gold)] text-[var(--text-muted)]'
                 }`}
               >
-                <span className={`w-2 h-2 rounded-full ${selectedPoint === point.id ? 'bg-[var(--bg-dark)]' : 'bg-[var(--green)]'}`} />
+                <span className="text-[12px]">{point.icon}</span>
                 {point.name}
               </button>
             ))}
@@ -260,7 +274,8 @@ export default function QuickOrder() {
                         {formatDate(order.created_at)} • {
                           order.точка_id === 2 ? 'ЦЕНТР' :
                           order.точка_id === 3 ? 'СЕВЕРНЫЙ' :
-                          order.точка_id === 4 ? 'ЛБ' : '—'
+                          order.точка_id === 4 ? 'ЛБ' :
+                          order.адрес_доставки ? 'ДОСТАВКА' : '—'
                         }
                       </p>
                     </div>
