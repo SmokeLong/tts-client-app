@@ -1,13 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
-
-async function hashPassword(password) {
-  const encoder = new TextEncoder()
-  const data = encoder.encode(password)
-  const hash = await crypto.subtle.digest('SHA-256', data)
-  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('')
-}
+import { showToast } from '../stores/toastStore'
 
 function formatPhone(value) {
   const digits = value.replace(/\D/g, '')
@@ -22,17 +16,14 @@ function formatPhone(value) {
   return result
 }
 
-// Modes: login, register-phone, register-sms, register-credentials, recovery, recovery-sms, recovery-pass
+// Modes: login, recovery, recovery-sms, recovery-pass
 export default function Auth() {
   const [mode, setMode] = useState('login')
-  const [login, setLogin] = useState('')
-  const [password, setPassword] = useState('')
   const [phone, setPhone] = useState('+7')
+  const [password, setPassword] = useState('')
   const [smsCode, setSmsCode] = useState('')
-  const [newLogin, setNewLogin] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [newPasswordRepeat, setNewPasswordRepeat] = useState('')
-  const [name, setName] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [countdown, setCountdown] = useState(0)
@@ -44,7 +35,6 @@ export default function Auth() {
     if (isAuthenticated) navigate('/', { replace: true })
   }, [isAuthenticated, navigate])
 
-  // Countdown timer for SMS resend
   useEffect(() => {
     if (countdown <= 0) return
     const t = setTimeout(() => setCountdown(countdown - 1), 1000)
@@ -56,15 +46,16 @@ export default function Auth() {
   // --- LOGIN ---
   async function handleLogin(e) {
     e.preventDefault()
-    if (!login || !password) return setError('Заполните все поля')
+    const digits = phone.replace(/\D/g, '')
+    if (digits.length < 11) return setError('Введите номер телефона')
+    if (!password) return setError('Введите пароль')
     setLoading(true)
     resetError()
     try {
-      const passHash = await hashPassword(password)
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ логин: login, пароль_хеш: passHash }),
+        body: JSON.stringify({ телефон: digits, пароль: password }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Ошибка входа')
@@ -77,7 +68,7 @@ export default function Auth() {
     }
   }
 
-  // --- SEND SMS ---
+  // --- SEND SMS (recovery) ---
   async function handleSendSms() {
     const digits = phone.replace(/\D/g, '')
     if (digits.length < 11) return setError('Введите корректный номер')
@@ -92,7 +83,7 @@ export default function Auth() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Ошибка отправки')
       setCountdown(60)
-      setMode(mode === 'recovery' ? 'recovery-sms' : 'register-sms')
+      setMode('recovery-sms')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -114,7 +105,7 @@ export default function Auth() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Неверный код')
-      setMode(mode === 'recovery-sms' ? 'recovery-pass' : 'register-credentials')
+      setMode('recovery-pass')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -122,33 +113,28 @@ export default function Auth() {
     }
   }
 
-  // --- REGISTER ---
-  async function handleRegister(e) {
+  // --- RESET PASSWORD ---
+  async function handleResetPassword(e) {
     e.preventDefault()
-    if (!newLogin || !newPassword) return setError('Заполните все поля')
-    if (newPassword.length < 4) return setError('Минимум 4 символа')
+    if (newPassword.length < 6) return setError('Минимум 6 символов')
     if (newPassword !== newPasswordRepeat) return setError('Пароли не совпадают')
     setLoading(true)
     resetError()
     try {
-      const passHash = await hashPassword(newPassword)
       const digits = phone.replace(/\D/g, '')
-      const res = await fetch('/api/register', {
+      const res = await fetch('/api/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          логин: newLogin,
-          пароль_хеш: passHash,
-          телефон: digits,
-          имя: name || null,
-          telegram_id: null,
-          telegram_username: null,
-        }),
+        body: JSON.stringify({ телефон: digits, пароль: newPassword }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Ошибка регистрации')
-      setAuth('session_' + Date.now(), data.client)
-      navigate('/')
+      if (!res.ok) throw new Error(data.error || 'Ошибка сброса пароля')
+      showToast('Пароль успешно изменён', 'success')
+      setMode('login')
+      setPassword('')
+      setNewPassword('')
+      setNewPasswordRepeat('')
+      setSmsCode('')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -156,12 +142,8 @@ export default function Auth() {
     }
   }
 
-  // Mode title
   const titles = {
     'login': 'Вход',
-    'register-phone': 'Регистрация',
-    'register-sms': 'Подтверждение',
-    'register-credentials': 'Создание аккаунта',
     'recovery': 'Восстановление',
     'recovery-sms': 'Подтверждение',
     'recovery-pass': 'Новый пароль',
@@ -176,9 +158,7 @@ export default function Auth() {
             {mode !== 'login' && (
               <button onClick={() => {
                 resetError()
-                if (mode === 'register-sms') setMode('register-phone')
-                else if (mode === 'register-credentials') setMode('register-sms')
-                else if (mode === 'recovery-sms') setMode('recovery')
+                if (mode === 'recovery-sms') setMode('recovery')
                 else if (mode === 'recovery-pass') setMode('recovery-sms')
                 else setMode('login')
               }} className="press-effect p-1">
@@ -203,25 +183,40 @@ export default function Auth() {
             {/* LOGIN */}
             {mode === 'login' && (
               <form onSubmit={handleLogin} className="space-y-3">
-                <Input placeholder="Логин" value={login} onChange={setLogin} />
+                <Input
+                  placeholder="+7 (900) 123-45-67"
+                  value={phone}
+                  onChange={(v) => setPhone(formatPhone(v))}
+                  type="tel"
+                />
                 <Input placeholder="Пароль" value={password} onChange={setPassword} type="password" />
                 {error && <ErrorMsg text={error} />}
                 <GoldBtn text={loading ? 'ЗАГРУЗКА...' : 'ВОЙТИ'} disabled={loading} />
                 <div className="flex justify-between pt-2">
-                  <button type="button" onClick={() => { resetError(); setMode('register-phone') }} className="text-[10px] text-[var(--text-muted)] hover:text-[var(--gold)]">
+                  <button
+                    type="button"
+                    onClick={() => navigate('/onboarding')}
+                    className="text-[10px] text-[var(--text-muted)] hover:text-[var(--gold)]"
+                  >
                     Регистрация
                   </button>
-                  <button type="button" onClick={() => { resetError(); setMode('recovery') }} className="text-[10px] text-[var(--text-muted)] hover:text-[var(--gold)]">
+                  <button
+                    type="button"
+                    onClick={() => { resetError(); setMode('recovery') }}
+                    className="text-[10px] text-[var(--text-muted)] hover:text-[var(--gold)]"
+                  >
                     Забыли пароль?
                   </button>
                 </div>
               </form>
             )}
 
-            {/* REGISTER: PHONE */}
-            {mode === 'register-phone' && (
+            {/* RECOVERY: PHONE */}
+            {mode === 'recovery' && (
               <div className="space-y-3">
-                <Input placeholder="Имя" value={name} onChange={setName} />
+                <p className="text-[11px] text-[var(--text-muted)] text-center mb-2">
+                  Введите номер телефона для восстановления
+                </p>
                 <Input
                   placeholder="+7 (900) 123-45-67"
                   value={phone}
@@ -233,8 +228,8 @@ export default function Auth() {
               </div>
             )}
 
-            {/* REGISTER / RECOVERY: SMS */}
-            {(mode === 'register-sms' || mode === 'recovery-sms') && (
+            {/* RECOVERY: SMS */}
+            {mode === 'recovery-sms' && (
               <div className="space-y-3">
                 <p className="text-[11px] text-[var(--text-muted)] text-center mb-2">
                   Код отправлен на {phone}
@@ -263,42 +258,11 @@ export default function Auth() {
               </div>
             )}
 
-            {/* REGISTER: CREDENTIALS */}
-            {mode === 'register-credentials' && (
-              <form onSubmit={handleRegister} className="space-y-3">
-                <p className="text-[11px] text-[var(--text-muted)] text-center mb-2">
-                  Придумайте логин и пароль для входа
-                </p>
-                <Input placeholder="Логин" value={newLogin} onChange={setNewLogin} />
-                <Input placeholder="Пароль" value={newPassword} onChange={setNewPassword} type="password" />
-                <Input placeholder="Повторите пароль" value={newPasswordRepeat} onChange={setNewPasswordRepeat} type="password" />
-                {error && <ErrorMsg text={error} />}
-                <GoldBtn text={loading ? 'РЕГИСТРАЦИЯ...' : 'ЗАРЕГИСТРИРОВАТЬСЯ'} disabled={loading} />
-              </form>
-            )}
-
-            {/* RECOVERY: PHONE */}
-            {mode === 'recovery' && (
-              <div className="space-y-3">
-                <p className="text-[11px] text-[var(--text-muted)] text-center mb-2">
-                  Введите номер телефона для восстановления
-                </p>
-                <Input
-                  placeholder="+7 (900) 123-45-67"
-                  value={phone}
-                  onChange={(v) => setPhone(formatPhone(v))}
-                  type="tel"
-                />
-                {error && <ErrorMsg text={error} />}
-                <GoldBtn text={loading ? 'ОТПРАВКА...' : 'ПОЛУЧИТЬ КОД'} disabled={loading} onClick={handleSendSms} />
-              </div>
-            )}
-
             {/* RECOVERY: NEW PASSWORD */}
             {mode === 'recovery-pass' && (
-              <form onSubmit={handleRegister} className="space-y-3">
+              <form onSubmit={handleResetPassword} className="space-y-3">
                 <p className="text-[11px] text-[var(--text-muted)] text-center mb-2">
-                  Установите новый пароль
+                  Установите новый пароль (минимум 6 символов)
                 </p>
                 <Input placeholder="Новый пароль" value={newPassword} onChange={setNewPassword} type="password" />
                 <Input placeholder="Повторите пароль" value={newPasswordRepeat} onChange={setNewPasswordRepeat} type="password" />
