@@ -141,8 +141,8 @@ export default function Favorites() {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
-                    клиент_id: client.id,
-                    товар_ids: favoriteIds,
+                    client_id: client.id,
+                    product_ids: favoriteIds,
                     enabled: newVal,
                   }),
                 }).catch(() => {})

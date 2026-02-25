@@ -10,18 +10,18 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
   if (req.method === 'OPTIONS') return res.status(200).end()
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
   try {
-    const { клиент_id, товар_ids, enabled } = req.body
+    const { client_id, product_ids, enabled } = req.body
 
-    if (!клиент_id || !Array.isArray(товар_ids)) {
-      return res.status(400).json({ error: 'клиент_id и товар_ids обязательны' })
+    if (!client_id || !Array.isArray(product_ids)) {
+      return res.status(400).json({ error: 'client_id and product_ids required' })
     }
 
     if (enabled) {
-      // Upsert subscriptions for all favorite products
-      const rows = товар_ids.map((tid) => ({
-        клиент_id: клиент_id,
+      const rows = product_ids.map((tid) => ({
+        клиент_id: client_id,
         товар_id: tid,
         active: true,
       }))
@@ -34,11 +34,10 @@ export default async function handler(req, res) {
         if (error) throw error
       }
     } else {
-      // Deactivate all subscriptions for this client
       const { error } = await supabase
         .from('подписки_наличие')
         .update({ active: false })
-        .eq('клиент_id', клиент_id)
+        .eq('клиент_id', client_id)
 
       if (error) throw error
     }
@@ -46,6 +45,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true })
   } catch (error) {
     console.error('Subscribe stock error:', error)
-    res.status(500).json({ error: error.message || 'Ошибка подписки' })
+    res.status(500).json({ error: error.message || 'Server error' })
   }
 }
