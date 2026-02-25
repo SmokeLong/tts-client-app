@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useFavoritesStore } from '../stores/favoritesStore'
 import { useCartStore } from '../stores/cartStore'
+import { useAuthStore } from '../stores/authStore'
 import AppShell from '../components/layout/AppShell'
 import PageHeader from '../components/layout/PageHeader'
 import StockDots from '../components/product/StockDots'
@@ -33,6 +34,7 @@ export default function Favorites() {
   const notifyEnabled = useFavoritesStore((s) => s.notifyEnabled)
   const setNotify = useFavoritesStore((s) => s.setNotify)
   const addItem = useCartStore((s) => s.addItem)
+  const client = useAuthStore((s) => s.client)
 
   const [products, setProducts] = useState([])
   const [stockMap, setStockMap] = useState({})
@@ -131,7 +133,21 @@ export default function Favorites() {
             <p className="text-[9px] text-[rgba(96,165,250,0.8)] mt-0.5">Сообщим, когда товар появится</p>
           </div>
           <div
-            onClick={() => setNotify(!notifyEnabled)}
+            onClick={() => {
+              const newVal = !notifyEnabled
+              setNotify(newVal)
+              if (client?.id && favoriteIds.length > 0) {
+                fetch('/api/subscribe-stock', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    клиент_id: client.id,
+                    товар_ids: favoriteIds,
+                    enabled: newVal,
+                  }),
+                }).catch(() => {})
+              }
+            }}
             className={`w-[44px] h-[24px] rounded-full relative cursor-pointer transition-all ${
               notifyEnabled ? 'bg-[#60a5fa]' : 'bg-[rgba(96,165,250,0.2)]'
             }`}
