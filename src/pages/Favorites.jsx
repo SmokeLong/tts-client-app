@@ -137,7 +137,7 @@ export default function Favorites() {
               const newVal = !notifyEnabled
               setNotify(newVal)
               if (client?.id && favoriteIds.length > 0) {
-                fetch('/api/subscribe-stock', {
+                fetch('/api/stock-subscribe', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
