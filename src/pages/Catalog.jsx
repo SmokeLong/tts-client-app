@@ -52,7 +52,7 @@ export default function Catalog() {
     setLoading(true)
     try {
       const [prodRes, invRes] = await Promise.all([
-        supabase.from('товары').select('*').eq('активен', true),
+        supabase.from('товары_публичные').select('*').eq('активен', true),
         supabase.from('инвентарь').select('*'),
       ])
 

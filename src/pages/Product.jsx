@@ -118,7 +118,7 @@ function Product() {
     setLoadError(null)
     try {
       const [prodRes, invRes] = await Promise.all([
-        supabase.from('товары').select('*').eq('id', id).single(),
+        supabase.from('товары_публичные').select('*').eq('id', id).single(),
         supabase.from('инвентарь').select('*').eq('товар_id', id),
       ])
 

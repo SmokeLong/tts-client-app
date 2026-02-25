@@ -72,7 +72,7 @@ export default function Filters() {
   }
 
   async function countProducts() {
-    let query = supabase.from('товары').select('id', { count: 'exact', head: true }).eq('активен', true)
+    let query = supabase.from('товары_публичные').select('id', { count: 'exact', head: true }).eq('активен', true)
 
     if (productType) {
       query = query.eq('категория', productType)

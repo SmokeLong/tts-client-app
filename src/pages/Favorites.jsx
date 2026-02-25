@@ -50,7 +50,7 @@ export default function Favorites() {
     setLoading(true)
 
     const { data: rawProducts } = await supabase
-      .from('товары')
+      .from('товары_публичные')
       .select('*')
       .in('id', favoriteIds)
       .eq('активен', true)

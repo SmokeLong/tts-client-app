@@ -41,7 +41,7 @@ export default function Lineup() {
   async function loadData() {
     setLoading(true)
     try {
-      let query = supabase.from('товары').select('*').eq('бренд', brandName).eq('активен', true)
+      let query = supabase.from('товары_публичные').select('*').eq('бренд', brandName).eq('активен', true)
       if (!isAll) {
         query = query.eq('линейка', lineupName)
       }

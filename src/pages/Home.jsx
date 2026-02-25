@@ -45,7 +45,7 @@ export default function Home() {
     setLoading(true)
     try {
       const { data: products, error } = await supabase
-        .from('товары')
+        .from('товары_публичные')
         .select('*')
         .eq('активен', true)
         .limit(20)

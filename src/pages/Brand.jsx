@@ -67,7 +67,7 @@ export default function Brand() {
     setLoading(true)
     try {
       const { data, error } = await supabase
-        .from('товары')
+        .from('товары_публичные')
         .select('*')
         .eq('бренд', decodedBrand)
         .eq('активен', true)
