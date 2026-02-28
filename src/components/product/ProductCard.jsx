@@ -19,10 +19,13 @@ export default function ProductCard({ product, stock, showFavorite, isFavorite, 
       {/* Image */}
       <div className="h-[120px] bg-gradient-to-b from-[rgba(26,24,22,1)] to-[rgba(13,12,10,1)] flex items-center justify-center relative">
         <div className="w-[70px] h-[70px] rounded-full border-2 border-[var(--border-gold)] bg-gradient-to-br from-[#1a1a1a] to-[#0d0d0d] flex items-center justify-center text-[28px]">
-          {emoji}
-        </div>
-
-        {/* Badge */}
+{product.photo ? (
+          <img src={product.photo} alt="" className="w-full h-full object-contain p-2" />
+        ) : (
+          <div className="w-[70px] h-[70px] rounded-full border-2 border-[var(--border-gold)] bg-gradient-to-br from-[#1a1a1a] to-[#0d0d0d] flex items-center justify-center text-[28px]">
+            {emoji}
+          </div>
+        )}        {/* Badge */}
         {product.badge && (
           <span className={`absolute top-2 left-2 px-2 py-1 rounded-md text-[8px] font-bold ${
             product.badge === 'ТОП' ? 'gold-gradient-bg text-[var(--bg-dark)]' :
