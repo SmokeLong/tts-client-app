@@ -17,15 +17,21 @@ export default function ProductCard({ product, stock, showFavorite, isFavorite, 
       <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[var(--gold)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 
       {/* Image */}
-      <div className="h-[120px] bg-gradient-to-b from-[rgba(26,24,22,1)] to-[rgba(13,12,10,1)] flex items-center justify-center relative">
-        <div className="w-[70px] h-[70px] rounded-full border-2 border-[var(--border-gold)] bg-gradient-to-br from-[#1a1a1a] to-[#0d0d0d] flex items-center justify-center text-[28px]">
-{product.photo ? (
-          <img src={product.photo} alt="" className="w-full h-full object-contain p-2" />
+      <div className="h-[140px] bg-gradient-to-b from-[rgba(26,24,22,1)] to-[rgba(13,12,10,1)] flex items-center justify-center relative overflow-hidden">
+        {product.photo ? (
+          <img
+            src={product.photo}
+            alt={product.name}
+            className="w-full h-full object-contain p-3 transition-transform duration-300 group-hover:scale-105"
+            loading="lazy"
+          />
         ) : (
           <div className="w-[70px] h-[70px] rounded-full border-2 border-[var(--border-gold)] bg-gradient-to-br from-[#1a1a1a] to-[#0d0d0d] flex items-center justify-center text-[28px]">
             {emoji}
           </div>
-        )}        {/* Badge */}
+        )}
+
+        {/* Badge */}
         {product.badge && (
           <span className={`absolute top-2 left-2 px-2 py-1 rounded-md text-[8px] font-bold ${
             product.badge === 'ТОП' ? 'gold-gradient-bg text-[var(--bg-dark)]' :

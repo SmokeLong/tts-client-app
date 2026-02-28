@@ -223,7 +223,6 @@ function Product() {
     { icon: '🍃', label: 'АРОМКА', value: product.flavor || '—' },
   ]
 
-  // Effect bars (hardcoded for now as we don't have this data)
   const effects = [
     { label: 'КРЕПОСТЬ', value: getStrengthLevel(product.strength) },
     { label: 'СИЛА ЖЖЕНИЯ', value: Math.max(3, getStrengthLevel(product.strength) - 1) },
@@ -281,14 +280,13 @@ function Product() {
               </span>
             </div>
           )}
-{product.photo ? (
+          {product.photo ? (
             <img src={product.photo} alt={product.name} className="w-[220px] h-[220px] object-contain relative z-10 drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)]" />
           ) : (
             <div className="text-[120px] relative z-10 drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
               {emoji}
             </div>
-          )}            {emoji}
-          </div>
+          )}
         </div>
 
         {/* Product Info */}
