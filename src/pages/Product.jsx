@@ -260,7 +260,7 @@ function Product() {
     { icon: '⚡', label: 'КРЕПОСТЬ', value: product.strength ? `${product.strength} MG` : '—' },
     { icon: '📦', label: 'ПАКЕТИКОВ', value: product.packets ? `${product.packets} шт` : '—' },
     { icon: '🎯', label: 'ФОРМАТ', value: product.format || '—' },
-    { icon: '⚖️', label: 'ВЕС НЕТТО', value: product.weight ? `${product.weight} г` : '—' },
+    { icon: '🔥', label: 'КАТЕГОРИЯ', value: product.strengthCategory || '—' },
     { icon: '💨', label: 'ТИП ЭФФЕКТА', value: product.effectType || '—' },
     { icon: '🍃', label: 'ТИП АРОМКИ', value: product.aromaType || '—' },
     { icon: '💧', label: 'ВЛАЖНОСТЬ', value: product.moisture || '—' },
