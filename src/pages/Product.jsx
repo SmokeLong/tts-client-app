@@ -281,8 +281,13 @@ function Product() {
               </span>
             </div>
           )}
-          <div className="text-[120px] relative z-10 drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
-            {emoji}
+{product.photo ? (
+            <img src={product.photo} alt={product.name} className="w-[220px] h-[220px] object-contain relative z-10 drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)]" />
+          ) : (
+            <div className="text-[120px] relative z-10 drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
+              {emoji}
+            </div>
+          )}            {emoji}
           </div>
         </div>
 
