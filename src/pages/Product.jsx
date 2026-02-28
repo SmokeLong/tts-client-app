@@ -43,12 +43,25 @@ function mapProduct(raw) {
     category: raw.категория ?? '',
     priceCash: raw.цена_нал ?? 0,
     priceCard: raw.цена_безнал ?? 0,
-    strength: raw.крепость != null ? String(raw.крепость) : '',
+    strength: raw.крепость != null ? Number(raw.крепость) : 0,
+    strengthCategory: raw.категория_крепости ?? '',
     flavor: raw.вкус != null ? String(raw.вкус) : '',
     format: raw.формат_пакетов != null ? String(raw.формат_пакетов) : '',
-    packets: raw.кол_во_пакетов,
+    packets: raw.количество_пакетов ?? raw.кол_во_пакетов,
     photo: raw.фото_url,
     active: raw.активен,
+    effectType: raw.тип_эффекта ?? '',
+    aromaType: raw.тип_аромки ?? '',
+    aromaSaturation: raw.насыщенность_аромки ?? '',
+    moisture: raw.влажность ?? '',
+    flow: raw.текучесть ?? '',
+    burning: raw.сила_жжения ?? 0,
+    rating: raw.общая_оценка ?? 0,
+    description: raw.описание ?? '',
+    flavorDescription: raw.описание_вкуса ?? '',
+    tcoins: raw.ткоины_за_покупку ?? 0,
+    flavorOrder: raw.порядок_вкуса ?? 0,
+    lineupOrder: raw.порядок_линейки ?? 0,
   }
 }
 
@@ -82,11 +95,19 @@ function stockLabel(qty) {
   return '0'
 }
 
-const LOCATIONS = [
-  { id: 2, name: 'ЦЕНТР', address: 'У Атмосферы' },
-  { id: 3, name: 'СЕВЕРНЫЙ', address: '17 квартал' },
-  { id: 4, name: 'ЛБ', address: 'Вкусно И. на Димитрова' },
-]
+function strengthToBar(mg) {
+  if (!mg) return 3
+  if (mg <= 20) return 1
+  if (mg <= 45) return 2
+  if (mg <= 60) return 3
+  if (mg <= 75) return 4
+  if (mg <= 100) return 5
+  if (mg <= 120) return 6
+  if (mg <= 150) return 7
+  if (mg <= 175) return 8
+  if (mg <= 200) return 9
+  return 10
+}
 
 export default function ProductPage() {
   return (
@@ -104,6 +125,9 @@ function Product() {
 
   const [product, setProduct] = useState(null)
   const [stock, setStock] = useState({})
+  const [locations, setLocations] = useState([])
+  const [discounts, setDiscounts] = useState([])
+  const [recommendations, setRecommendations] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(null)
   const [qty, setQty] = useState(1)
@@ -117,13 +141,15 @@ function Product() {
     setLoading(true)
     setLoadError(null)
     try {
-      const [prodRes, invRes] = await Promise.all([
+      const [prodRes, invRes, locRes, discRes, recRes] = await Promise.all([
         supabase.from('товары_публичные').select('*').eq('id', id).single(),
         supabase.from('инвентарь').select('*').eq('товар_id', id),
+        supabase.from('точки').select('*').eq('активна', true).order('порядок'),
+        supabase.from('скидки_объём').select('*').eq('товар_id', id).order('от_количества'),
+        supabase.from('рекомендации').select('рекомендация_id').eq('товар_id', id),
       ])
 
       if (prodRes.error) {
-        console.error('Product load error:', prodRes.error)
         setLoadError(prodRes.error.message)
         setLoading(false)
         return
@@ -133,13 +159,28 @@ function Product() {
 
       if (invRes.data) {
         const s = {}
-        for (const row of invRes.data) {
-          s[row.точка_id] = row.количество
-        }
+        for (const row of invRes.data) s[row.точка_id] = row.количество
         setStock(s)
       }
+
+      // Filter locations: only non-warehouse
+      if (locRes.data) {
+        setLocations(locRes.data.filter(l => l.тип !== 'Склад'))
+      }
+
+      if (discRes.data) setDiscounts(discRes.data)
+
+      // Load recommended products
+      if (recRes.data && recRes.data.length > 0) {
+        const recIds = recRes.data.map(r => r.рекомендация_id)
+        const { data: recProducts } = await supabase
+          .from('товары_публичные')
+          .select('*')
+          .in('id', recIds)
+          .eq('активен', true)
+        if (recProducts) setRecommendations(recProducts.map(mapProduct))
+      }
     } catch (err) {
-      console.error('Product load error:', err)
       setLoadError(err.message || 'Ошибка загрузки')
     } finally {
       setLoading(false)
@@ -148,17 +189,13 @@ function Product() {
 
   function handleAddToCart() {
     if (!product) return
-    for (let i = 0; i < qty; i++) {
-      addItem(product)
-    }
+    for (let i = 0; i < qty; i++) addItem(product)
     navigate('/cart')
   }
 
   function handlePreorder() {
     if (!product) return
-    for (let i = 0; i < qty; i++) {
-      addItem(product)
-    }
+    for (let i = 0; i < qty; i++) addItem(product)
     navigate('/cart')
   }
 
@@ -215,20 +252,22 @@ function Product() {
   const cartCount = cartItems.reduce((sum, i) => sum + (i.qty || 0), 0)
 
   const specs = [
-    { icon: '⚡', label: 'КРЕПОСТЬ', value: product.strength || '—' },
+    { icon: '⚡', label: 'КРЕПОСТЬ', value: product.strength ? `${product.strength} MG` : '—' },
     { icon: '📦', label: 'ПАКЕТИКОВ', value: product.packets ? `${product.packets} ШТ` : '—' },
-    { icon: '💨', label: 'ТИП ЭФФЕКТА', value: product.category || '—' },
+    { icon: '💨', label: 'ТИП ЭФФЕКТА', value: product.effectType || '—' },
     { icon: '🎯', label: 'ФОРМАТ', value: product.format || '—' },
-    { icon: '🧪', label: 'ТИП ПРОДУКТА', value: product.category || '—' },
-    { icon: '🍃', label: 'АРОМКА', value: product.flavor || '—' },
+    { icon: '🍃', label: 'ТИП АРОМКИ', value: product.aromaType || '—' },
+    { icon: '💧', label: 'ВЛАЖНОСТЬ', value: product.moisture || '—' },
   ]
 
-  const effects = [
-    { label: 'КРЕПОСТЬ', value: getStrengthLevel(product.strength) },
-    { label: 'СИЛА ЖЖЕНИЯ', value: Math.max(3, getStrengthLevel(product.strength) - 1) },
-    { label: 'НАСЫЩЕННОСТЬ АРОМКИ', value: 7 },
-    { label: 'ОБЩАЯ ОЦЕНКА КАЧЕСТВА', value: 8 },
+  const bars = [
+    { label: 'КРЕПОСТЬ', value: strengthToBar(product.strength) },
+    { label: 'СИЛА ЖЖЕНИЯ', value: product.burning || Math.max(1, strengthToBar(product.strength) - 2) },
+    { label: 'НАСЫЩЕННОСТЬ АРОМКИ', value: product.aromaSaturation === 'Сладкая' ? 8 : product.aromaSaturation === 'Кислая' ? 6 : 5 },
+    { label: 'ОБЩАЯ ОЦЕНКА', value: product.rating || 7 },
   ]
+
+  const descText = product.flavorDescription || product.description || ''
 
   return (
     <div className="min-h-screen leather-bg">
@@ -248,8 +287,7 @@ function Product() {
             >
               <svg width="20" height="20" viewBox="0 0 24 24"
                 fill={isFavorite ? 'var(--gold)' : 'none'}
-                stroke={isFavorite ? 'var(--gold)' : 'var(--gold)'}
-                strokeWidth="1.5"
+                stroke="var(--gold)" strokeWidth="1.5"
               >
                 <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>
@@ -271,15 +309,8 @@ function Product() {
         </header>
 
         {/* Hero */}
-        <div className="relative py-8 flex items-center justify-center min-h-[280px] bg-gradient-to-b from-[rgba(25,22,20,0.9)] to-[rgba(10,9,8,0.95)] animate-scaleIn">
+        <div className="relative py-8 flex items-center justify-center min-h-[280px] bg-gradient-to-b from-[rgba(25,22,20,0.9)] to-[rgba(10,9,8,0.95)]">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200px] h-[200px] bg-[radial-gradient(circle,rgba(212,175,55,0.1)_0%,transparent_70%)] pointer-events-none" />
-          {product.badge && (
-            <div className="absolute top-5 left-5 flex flex-col gap-2">
-              <span className="px-3.5 py-2 gold-gradient-bg rounded-full text-[10px] font-bold text-[var(--bg-dark)] tracking-wider shadow-[0_4px_15px_rgba(212,175,55,0.3)]">
-                {product.badge}
-              </span>
-            </div>
-          )}
           {product.photo ? (
             <img src={product.photo} alt={product.name} className="w-[220px] h-[220px] object-contain relative z-10 drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)]" />
           ) : (
@@ -290,7 +321,7 @@ function Product() {
         </div>
 
         {/* Product Info */}
-        <div className="px-5 py-6 animate-fadeInUp">
+        <div className="px-5 py-6">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-[11px] text-[var(--text-muted)] tracking-[2px]">{product.brand}</span>
             {product.lineup && (
@@ -299,56 +330,135 @@ function Product() {
               </span>
             )}
           </div>
-          <h1 className="text-[26px] font-black tracking-[2px] leading-tight mb-4 gold-gradient-text">
+          <h1 className="text-[24px] font-black tracking-[1px] leading-tight mb-3 gold-gradient-text">
             {product.name}
           </h1>
-          <p className="text-[12px] text-[var(--text-muted)] leading-relaxed mb-5">
-            {product.flavor ? `${product.flavor}. ` : ''}
-            {product.strength ? `Крепость: ${product.strength}. ` : ''}
-            {product.format ? `Формат: ${product.format}.` : ''}
-          </p>
+
+          {/* Price block */}
+          <div className="flex items-baseline gap-3 mb-3">
+            <span className="text-[22px] font-black text-[var(--gold-light)]">
+              {product.priceCash} ₽
+            </span>
+            <span className="text-[11px] text-[var(--text-muted)]">нал</span>
+            {product.priceCard !== product.priceCash && (
+              <>
+                <span className="text-[16px] font-bold text-[var(--text-muted)]">
+                  {product.priceCard} ₽
+                </span>
+                <span className="text-[11px] text-[var(--text-muted)]">безнал</span>
+              </>
+            )}
+          </div>
+
+          {/* Tcoins */}
+          {product.tcoins > 0 && (
+            <div className="flex items-center gap-2 mb-4 px-3 py-2 bg-[rgba(212,175,55,0.08)] rounded-xl border border-[rgba(212,175,55,0.15)]">
+              <span className="text-[14px]">🪙</span>
+              <span className="text-[11px] text-[var(--gold)]">Начислим <strong>{product.tcoins} ткоинов</strong> за покупку</span>
+            </div>
+          )}
+
+          {/* Description */}
+          {descText && (
+            <p className="text-[12px] text-[var(--text-muted)] leading-relaxed mb-5">{descText}</p>
+          )}
 
           {/* Specs Grid */}
-          <div className="grid grid-cols-2 gap-2.5 mb-6">
+          <div className="grid grid-cols-2 gap-2.5 mb-2">
             {specs.map((spec) => (
-              <div key={spec.label} className="card p-3.5 flex items-center gap-3">
-                <div className="w-9 h-9 rounded-[10px] bg-[rgba(212,175,55,0.1)] flex items-center justify-center text-[18px] shrink-0">
+              <div key={spec.label} className="card p-3 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-[10px] bg-[rgba(212,175,55,0.1)] flex items-center justify-center text-[16px] shrink-0">
                   {spec.icon}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[8px] text-[var(--text-muted)] tracking-wider mb-0.5">{spec.label}</p>
-                  <p className="text-[12px] font-bold text-[var(--gold-light)] truncate">{spec.value}</p>
+                  <p className="text-[7px] text-[var(--text-muted)] tracking-wider mb-0.5">{spec.label}</p>
+                  <p className="text-[11px] font-bold text-[var(--gold-light)] truncate">{spec.value}</p>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="h-px bg-gradient-to-r from-transparent via-[var(--border-gold)] to-transparent mx-5" />
+        <Divider />
+
+        {/* Characteristics bars */}
+        <div className="px-5 py-5">
+          <SectionTitle>ХАРАКТЕРИСТИКИ</SectionTitle>
+          <div className="flex flex-col gap-3.5">
+            {bars.map((bar) => (
+              <div key={bar.label} className="flex flex-col gap-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] text-[var(--text-muted)] tracking-wider">{bar.label}</span>
+                  <span className="text-[10px] font-bold text-[var(--gold)]">{bar.value}/10</span>
+                </div>
+                <div className="h-1.5 bg-[rgba(212,175,55,0.1)] rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-[var(--gold-dark)] to-[var(--gold)] transition-all duration-500"
+                    style={{ width: `${bar.value * 10}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* Text characteristics */}
+          {(product.effectType || product.flow) && (
+            <div className="flex flex-wrap gap-2 mt-4">
+              {product.effectType && <Tag label="Эффект" value={product.effectType} />}
+              {product.flow && <Tag label="Текучесть" value={product.flow} />}
+              {product.aromaSaturation && <Tag label="Аромка" value={product.aromaSaturation} />}
+              {product.strengthCategory && <Tag label="Категория" value={product.strengthCategory} />}
+            </div>
+          )}
+        </div>
+
+        <Divider />
+
+        {/* Volume discounts */}
+        {discounts.length > 0 && (
+          <>
+            <div className="px-5 py-5">
+              <SectionTitle>СКИДКИ ЗА ОБЪЁМ</SectionTitle>
+              <div className="grid grid-cols-2 gap-2">
+                {discounts.map((d, i) => (
+                  <div key={i} className="card p-3 text-center">
+                    <p className="text-[9px] text-[var(--text-muted)] tracking-wider mb-1">ОТ {d.от_количества} ШТ</p>
+                    <p className="text-[14px] font-extrabold text-[var(--gold-light)]">{d.цена_нал} ₽</p>
+                    {d.цена_безнал !== d.цена_нал && (
+                      <p className="text-[10px] text-[var(--text-muted)]">{d.цена_безнал} ₽ безнал</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <Divider />
+          </>
+        )}
 
         {/* Stock by Location */}
         <div className="px-5 py-5">
-          <h3 className="text-[12px] font-bold text-[var(--gold)] tracking-[2px] mb-3.5 flex items-center gap-2">
-            <span className="text-[10px]">★</span> НАЛИЧИЕ НА ТОЧКАХ
-          </h3>
-          <div className="flex flex-col gap-2.5">
-            {LOCATIONS.map((loc) => {
+          <SectionTitle>НАЛИЧИЕ</SectionTitle>
+          <div className="flex flex-col gap-2">
+            {locations.map((loc) => {
               const qty_val = stock[loc.id] ?? 0
               const color = dotColor(qty_val)
+              const isDelivery = loc.название === 'ДОСТАВКА'
               return (
                 <div key={loc.id} className="card p-3.5 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div
-                      className={`w-2.5 h-2.5 rounded-full bg-[var(--${color})]`}
-                      style={{ boxShadow: `0 0 10px var(--${color})` }}
+                      className="w-2.5 h-2.5 rounded-full"
+                      style={{ background: `var(--${color})`, boxShadow: `0 0 10px var(--${color})` }}
                     />
                     <div>
-                      <p className="text-[12px] font-bold text-[var(--gold-light)] mb-0.5">{loc.name}</p>
-                      <p className="text-[9px] text-[var(--text-muted)]">{loc.address}</p>
+                      <p className="text-[12px] font-bold text-[var(--gold-light)] mb-0.5 flex items-center gap-1.5">
+                        {isDelivery && <span className="text-[11px]">🚗</span>}
+                        {loc.название}
+                      </p>
+                      {loc.адрес && <p className="text-[9px] text-[var(--text-muted)]">{loc.адрес}</p>}
                     </div>
                   </div>
-                  <span className={`text-[14px] font-extrabold text-[var(--${color})]`}>
-                    {stockLabel(qty_val)}
+                  <span className="text-[14px] font-extrabold" style={{ color: `var(--${color})` }}>
+                    {isDelivery ? (qty_val > 0 ? 'Есть' : '—') : stockLabel(qty_val)}
                   </span>
                 </div>
               )
@@ -356,74 +466,75 @@ function Product() {
           </div>
         </div>
 
-        <div className="h-px bg-gradient-to-r from-transparent via-[var(--border-gold)] to-transparent mx-5" />
-
-        {/* Effect Bars */}
-        <div className="px-5 py-5">
-          <h3 className="text-[12px] font-bold text-[var(--gold)] tracking-[2px] mb-3.5 flex items-center gap-2">
-            <span className="text-[10px]">★</span> ХАРАКТЕРИСТИКИ
-          </h3>
-          <div className="flex flex-col gap-3.5">
-            {effects.map((eff) => (
-              <div key={eff.label} className="flex flex-col gap-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] text-[var(--text-muted)] tracking-wider">{eff.label}</span>
-                  <span className="text-[10px] font-bold text-[var(--gold)]">{eff.value}/10</span>
-                </div>
-                <div className="h-1.5 bg-[rgba(212,175,55,0.1)] rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-[var(--gold-dark)] to-[var(--gold)] transition-all duration-500"
-                    style={{ width: `${eff.value * 10}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="h-px bg-gradient-to-r from-transparent via-[var(--border-gold)] to-transparent mx-5" />
+        <Divider />
 
         {/* Reviews placeholder */}
         <div className="px-5 py-5">
           <div className="flex justify-between items-center mb-3.5">
-            <h3 className="text-[12px] font-bold text-[var(--gold)] tracking-[2px] flex items-center gap-2">
-              <span className="text-[10px]">★</span> ОТЗЫВЫ
-            </h3>
-            <span className="text-[11px] text-[var(--gold)] tracking-wider cursor-pointer">СМОТРЕТЬ ВСЕ →</span>
+            <SectionTitle noMargin>ОТЗЫВЫ</SectionTitle>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex gap-0.5">
               {[1, 2, 3, 4, 5].map((star) => (
                 <svg key={star} width="16" height="16" viewBox="0 0 24 24"
-                  fill={star <= 4 ? 'var(--gold)' : 'var(--border-gold)'}
+                  fill={star <= Math.round(product.rating || 4) ? 'var(--gold)' : 'var(--border-gold)'}
                 >
                   <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                 </svg>
               ))}
             </div>
-            <span className="text-[11px] text-[var(--text-muted)]">4.0 · 0 отзывов</span>
+            <span className="text-[11px] text-[var(--text-muted)]">{product.rating || 4}.0 · 0 отзывов</span>
           </div>
         </div>
+
+        {/* Recommendations */}
+        {recommendations.length > 0 && (
+          <>
+            <Divider />
+            <div className="px-5 py-5">
+              <SectionTitle>С ЭТИМ БЕРУТ</SectionTitle>
+              <div className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5 scrollbar-hide">
+                {recommendations.map((rec) => (
+                  <div
+                    key={rec.id}
+                    className="card min-w-[140px] max-w-[140px] overflow-hidden cursor-pointer shrink-0 press-effect"
+                    onClick={() => navigate(`/product/${rec.id}`)}
+                  >
+                    <div className="h-[100px] bg-gradient-to-b from-[rgba(26,24,22,1)] to-[rgba(13,12,10,1)] flex items-center justify-center">
+                      {rec.photo ? (
+                        <img src={rec.photo} alt={rec.name} className="w-full h-full object-contain p-2" loading="lazy" />
+                      ) : (
+                        <span className="text-[28px]">{getFlavorEmoji(rec.flavor)}</span>
+                      )}
+                    </div>
+                    <div className="p-2.5">
+                      <p className="text-[8px] text-[var(--text-muted)] tracking-wider mb-0.5">{rec.brand}</p>
+                      <p className="text-[10px] font-bold text-[var(--gold-light)] leading-tight mb-1.5 line-clamp-2">{rec.name}</p>
+                      <p className="text-[12px] font-extrabold text-[var(--gold)]">{rec.priceCash} ₽</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Bottom Action Bar */}
         <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-app bg-[linear-gradient(180deg,rgba(10,9,8,0.98),rgba(5,4,3,1))] border-t border-[var(--border-gold)] z-50 backdrop-blur-xl">
           <div className="px-5 pt-4 pb-7">
-            {/* Price row */}
             <div className="flex items-center justify-between mb-3.5">
               <div className="flex items-baseline gap-2.5">
                 <span className="text-[28px] font-black text-[var(--gold-light)]">
                   {product.priceCash} <span className="text-[16px] text-[var(--gold)]">₽</span>
                 </span>
                 {product.priceCard > product.priceCash && (
-                  <span className="text-[16px] text-[var(--text-muted)] line-through">
-                    {product.priceCard}₽
+                  <span className="text-[13px] text-[var(--text-muted)]">
+                    {product.priceCard}₽ безнал
                   </span>
                 )}
               </div>
               <QuantitySelector value={qty} onChange={setQty} />
             </div>
-
-            {/* Action buttons */}
             <div className="flex gap-3">
               <button
                 onClick={handlePreorder}
@@ -445,15 +556,23 @@ function Product() {
   )
 }
 
-function getStrengthLevel(strength) {
-  if (!strength && strength !== 0) return 5
-  const s = String(strength).toLowerCase()
-  if (s.includes('очень крепк')) return 10
-  if (s.includes('крепк')) return 8
-  if (s.includes('средне-крепк')) return 7
-  if (s.includes('средн')) return 5
-  if (s.includes('средне-лёг') || s.includes('средне-лег')) return 4
-  if (s.includes('лёг') || s.includes('лег')) return 3
-  if (s.includes('очень лёг') || s.includes('очень лег')) return 1
-  return 5
+function SectionTitle({ children, noMargin }) {
+  return (
+    <h3 className={`text-[12px] font-bold text-[var(--gold)] tracking-[2px] flex items-center gap-2 ${noMargin ? '' : 'mb-3.5'}`}>
+      <span className="text-[10px]">★</span> {children}
+    </h3>
+  )
+}
+
+function Divider() {
+  return <div className="h-px bg-gradient-to-r from-transparent via-[var(--border-gold)] to-transparent mx-5" />
+}
+
+function Tag({ label, value }) {
+  return (
+    <div className="px-3 py-1.5 bg-[rgba(212,175,55,0.08)] rounded-lg border border-[rgba(212,175,55,0.12)]">
+      <span className="text-[8px] text-[var(--text-muted)] tracking-wider">{label}: </span>
+      <span className="text-[10px] font-bold text-[var(--gold-light)]">{value}</span>
+    </div>
+  )
 }
