@@ -43,23 +43,28 @@ function mapProduct(raw) {
     category: raw.категория ?? '',
     priceCash: raw.цена_нал ?? 0,
     priceCard: raw.цена_безнал ?? 0,
-    strength: raw.крепость != null ? Number(raw.крепость) : 0,
+    strength: raw.крепость != null ? Number(raw.крепость) : null,
     strengthCategory: raw.категория_крепости ?? '',
     flavor: raw.вкус != null ? String(raw.вкус) : '',
     format: raw.формат_пакетов != null ? String(raw.формат_пакетов) : '',
-    packets: raw.количество_пакетов ?? raw.кол_во_пакетов,
+    packets: raw.количество_пакетов ?? null,
+    weight: raw.вес_нетто ?? null,
     photo: raw.фото_url,
     active: raw.активен,
     effectType: raw.тип_эффекта ?? '',
     aromaType: raw.тип_аромки ?? '',
-    aromaSaturation: raw.насыщенность_аромки ?? '',
+    aromaSaturation: raw.насыщенность_аромки ?? null,
     moisture: raw.влажность ?? '',
-    flow: raw.текучесть ?? '',
-    burning: raw.сила_жжения ?? 0,
-    rating: raw.общая_оценка ?? 0,
+    fluidity: raw.текучесть ?? '',
+    burnStrength: raw.сила_жжения != null ? Number(raw.сила_жжения) : null,
+    overallRating: raw.общая_оценка != null ? Number(raw.общая_оценка) : null,
     description: raw.описание ?? '',
     flavorDescription: raw.описание_вкуса ?? '',
     tcoins: raw.ткоины_за_покупку ?? 0,
+    popularity: raw.популярность ?? 0,
+    isNew: raw.новинка ?? false,
+    productCode: raw.код_товара ?? '',
+    analogCodes: raw.аналоги_коды ?? '',
     flavorOrder: raw.порядок_вкуса ?? 0,
     lineupOrder: raw.порядок_линейки ?? 0,
   }
@@ -253,18 +258,28 @@ function Product() {
 
   const specs = [
     { icon: '⚡', label: 'КРЕПОСТЬ', value: product.strength ? `${product.strength} MG` : '—' },
-    { icon: '📦', label: 'ПАКЕТИКОВ', value: product.packets ? `${product.packets} ШТ` : '—' },
-    { icon: '💨', label: 'ТИП ЭФФЕКТА', value: product.effectType || '—' },
+    { icon: '📦', label: 'ПАКЕТИКОВ', value: product.packets ? `${product.packets} шт` : '—' },
     { icon: '🎯', label: 'ФОРМАТ', value: product.format || '—' },
+    { icon: '⚖️', label: 'ВЕС НЕТТО', value: product.weight ? `${product.weight} г` : '—' },
+    { icon: '💨', label: 'ТИП ЭФФЕКТА', value: product.effectType || '—' },
     { icon: '🍃', label: 'ТИП АРОМКИ', value: product.aromaType || '—' },
     { icon: '💧', label: 'ВЛАЖНОСТЬ', value: product.moisture || '—' },
+    { icon: '🌊', label: 'ТЕКУЧЕСТЬ', value: product.fluidity || '—' },
   ]
 
+  // Parse aromaSaturation: could be number, numeric string, or text
+  function parseAroma(val) {
+    if (val == null) return null
+    const n = Number(val)
+    if (!isNaN(n) && n > 0) return Math.min(Math.round(n), 10)
+    return null
+  }
+
   const bars = [
-    { label: 'КРЕПОСТЬ', value: strengthToBar(product.strength) },
-    { label: 'СИЛА ЖЖЕНИЯ', value: product.burning || Math.max(1, strengthToBar(product.strength) - 2) },
-    { label: 'НАСЫЩЕННОСТЬ АРОМКИ', value: product.aromaSaturation === 'Сладкая' ? 8 : product.aromaSaturation === 'Кислая' ? 6 : 5 },
-    { label: 'ОБЩАЯ ОЦЕНКА', value: product.rating || 7 },
+    { label: 'КРЕПОСТЬ', value: product.strength ? strengthToBar(product.strength) : null },
+    { label: 'СИЛА ЖЖЕНИЯ', value: product.burnStrength ? Math.min(Math.round(Number(product.burnStrength)), 10) : null },
+    { label: 'НАСЫЩЕННОСТЬ АРОМКИ', value: parseAroma(product.aromaSaturation) },
+    { label: 'ОБЩАЯ ОЦЕНКА', value: product.overallRating ? Math.min(Math.round(Number(product.overallRating)), 10) : null },
   ]
 
   const descText = product.flavorDescription || product.description || ''
@@ -389,23 +404,27 @@ function Product() {
               <div key={bar.label} className="flex flex-col gap-2">
                 <div className="flex justify-between items-center">
                   <span className="text-[10px] text-[var(--text-muted)] tracking-wider">{bar.label}</span>
-                  <span className="text-[10px] font-bold text-[var(--gold)]">{bar.value}/10</span>
+                  <span className="text-[10px] font-bold text-[var(--gold)]">{bar.value != null ? `${bar.value}/10` : '—'}</span>
                 </div>
-                <div className="h-1.5 bg-[rgba(212,175,55,0.1)] rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-[var(--gold-dark)] to-[var(--gold)] transition-all duration-500"
-                    style={{ width: `${bar.value * 10}%` }}
-                  />
-                </div>
+                {bar.value != null ? (
+                  <div className="h-1.5 bg-[rgba(212,175,55,0.1)] rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-[var(--gold-dark)] to-[var(--gold)] transition-all duration-500"
+                      style={{ width: `${bar.value * 10}%` }}
+                    />
+                  </div>
+                ) : (
+                  <div className="h-1.5 bg-[rgba(212,175,55,0.05)] rounded-full" />
+                )}
               </div>
             ))}
           </div>
           {/* Text characteristics */}
-          {(product.effectType || product.flow) && (
+          {(product.effectType || product.fluidity || product.aromaSaturation || product.strengthCategory) && (
             <div className="flex flex-wrap gap-2 mt-4">
               {product.effectType && <Tag label="Эффект" value={product.effectType} />}
-              {product.flow && <Tag label="Текучесть" value={product.flow} />}
-              {product.aromaSaturation && <Tag label="Аромка" value={product.aromaSaturation} />}
+              {product.fluidity && <Tag label="Текучесть" value={product.fluidity} />}
+              {product.aromaSaturation && <Tag label="Аромка" value={String(product.aromaSaturation)} />}
               {product.strengthCategory && <Tag label="Категория" value={product.strengthCategory} />}
             </div>
           )}
@@ -477,13 +496,13 @@ function Product() {
             <div className="flex gap-0.5">
               {[1, 2, 3, 4, 5].map((star) => (
                 <svg key={star} width="16" height="16" viewBox="0 0 24 24"
-                  fill={star <= Math.round(product.rating || 4) ? 'var(--gold)' : 'var(--border-gold)'}
+                  fill={star <= Math.round(product.overallRating || 0) ? 'var(--gold)' : 'var(--border-gold)'}
                 >
                   <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                 </svg>
               ))}
             </div>
-            <span className="text-[11px] text-[var(--text-muted)]">{product.rating || 4}.0 · 0 отзывов</span>
+            <span className="text-[11px] text-[var(--text-muted)]">{product.overallRating ? `${product.overallRating}.0` : '—'} · 0 отзывов</span>
           </div>
         </div>
 
@@ -523,15 +542,16 @@ function Product() {
         <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-app bg-[linear-gradient(180deg,rgba(10,9,8,0.98),rgba(5,4,3,1))] border-t border-[var(--border-gold)] z-50 backdrop-blur-xl">
           <div className="px-5 pt-4 pb-7">
             <div className="flex items-center justify-between mb-3.5">
-              <div className="flex items-baseline gap-2.5">
-                <span className="text-[28px] font-black text-[var(--gold-light)]">
-                  {product.priceCash} <span className="text-[16px] text-[var(--gold)]">₽</span>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-[24px] font-black text-[var(--gold-light)]">
+                  {product.priceCash} ₽
                 </span>
-                {product.priceCard > product.priceCash && (
-                  <span className="text-[13px] text-[var(--text-muted)]">
-                    {product.priceCard}₽ безнал
-                  </span>
-                )}
+                <span className="text-[11px] text-[var(--text-muted)]">нал</span>
+                <span className="text-[11px] text-[var(--text-muted)] mx-0.5">·</span>
+                <span className="text-[16px] font-bold text-[var(--text-muted)]">
+                  {product.priceCard} ₽
+                </span>
+                <span className="text-[11px] text-[var(--text-muted)]">безнал</span>
               </div>
               <QuantitySelector value={qty} onChange={setQty} />
             </div>
