@@ -74,12 +74,12 @@ export default function Auth() {
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ login: '+' + digits, password }),
+        body: JSON.stringify({ телефон: digits, пароль: password }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Ошибка входа')
       setAuth('session_' + Date.now(), data.client)
-      navigate(redirectTo)
+      navigate(redirectTo, { replace: true })
     } catch (err) {
       setError(err.message)
     } finally {

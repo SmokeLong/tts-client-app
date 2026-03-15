@@ -31,7 +31,7 @@ function AuthGuard({ children }) {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/onboarding" replace />
+    return <Navigate to="/auth" replace />
   }
 
   return children
@@ -48,11 +48,9 @@ export default function App() {
     <BrowserRouter>
       <ToastContainer />
       <Routes>
-        {/* Public routes */}
+        {/* Public routes — shop works without auth */}
         <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/auth" element={<Auth />} />
-
-        {/* Public routes — shop works without auth */}
         <Route path="/" element={<Home />} />
         <Route path="/catalog" element={<Catalog />} />
         <Route path="/brand/:id" element={<Brand />} />
@@ -63,7 +61,7 @@ export default function App() {
         <Route path="/quick-order" element={<QuickOrder />} />
         <Route path="/favorites" element={<Favorites />} />
 
-        {/* Auth-required routes */}
+        {/* Auth required */}
         <Route path="/orders" element={<AuthGuard><Orders /></AuthGuard>} />
         <Route path="/profile" element={<AuthGuard><Profile /></AuthGuard>} />
         <Route path="/settings" element={<AuthGuard><Settings /></AuthGuard>} />

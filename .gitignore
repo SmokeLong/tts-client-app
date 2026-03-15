@@ -6,3 +6,5 @@ dist
 *.log
 .env.local
 товары_выгрузка.csv
+.agents/
+.worktrees/

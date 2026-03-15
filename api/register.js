@@ -6,6 +6,9 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY
 )
 
+const PERSDATA_URL = process.env.PERSDATA_API_URL || 'http://5.42.113.192'
+const PERSDATA_KEY = process.env.PERSDATA_API_KEY || 'tts-persdata-key-2026-xK9mQ4'
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
@@ -68,6 +71,22 @@ export default async function handler(req, res) {
     if (error) {
       console.error('Register error:', error)
       return res.status(500).json({ error: 'Ошибка регистрации' })
+    }
+
+    // 152-ФЗ: сохранить персданные на русский VPS
+    try {
+      await fetch(`${PERSDATA_URL}/api/clients`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': PERSDATA_KEY },
+        body: JSON.stringify({
+          client_id: client.id,
+          phone: phoneFormatted,
+          name: client.имя || null,
+          telegram_id: telegram_id || null,
+        }),
+      })
+    } catch (e) {
+      console.error('PersData sync error:', e)
     }
 
     res.status(200).json({ success: true, client })

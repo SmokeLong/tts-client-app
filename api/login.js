@@ -6,6 +6,9 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY
 )
 
+const PERSDATA_URL = process.env.PERSDATA_API_URL || 'http://5.42.113.192'
+const PERSDATA_KEY = process.env.PERSDATA_API_KEY || 'tts-persdata-key-2026-xK9mQ4'
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
@@ -41,6 +44,19 @@ export default async function handler(req, res) {
       .from('клиенты')
       .update({ последняя_активность: new Date().toISOString() })
       .eq('id', client.id)
+
+    // 152-ФЗ: подтянуть персданные с русского VPS
+    try {
+      const persRes = await fetch(`${PERSDATA_URL}/api/clients/${client.id}`, {
+        headers: { 'X-API-Key': PERSDATA_KEY },
+      })
+      if (persRes.ok) {
+        const persData = await persRes.json()
+        client._persdata = { name: persData.name, phone: persData.phone }
+      }
+    } catch (e) {
+      console.error('PersData fetch error:', e)
+    }
 
     res.status(200).json({ success: true, client })
   } catch (error) {
