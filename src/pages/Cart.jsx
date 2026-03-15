@@ -143,20 +143,15 @@ export default function Cart() {
     setOrderError('')
 
     try {
-      const товары_json = items.map((i) => ({
-        id: i.product.id,
-        название: i.product.name,
+      const товары = items.map((i) => ({
+        товар_id: i.product.id,
         количество: i.qty,
-        цена: i.paymentType === 'card' ? i.product.priceCard : i.product.priceCash,
-        тип_оплаты: i.paymentType,
+        тип_оплаты: paymentMethod === 'mixed'
+          ? (i.paymentType === 'card' ? 'безнал' : 'нал')
+          : undefined,
       }))
 
-      const сумма_нал = paymentMethod === 'cash' ? total : paymentMethod === 'mixed'
-        ? items.filter((i) => i.paymentType === 'cash').reduce((s, i) => s + (i.product.priceCash || 0) * i.qty, 0)
-        : 0
-      const сумма_безнал = paymentMethod === 'card' ? total : paymentMethod === 'mixed'
-        ? items.filter((i) => i.paymentType === 'card').reduce((s, i) => s + (i.product.priceCard || 0) * i.qty, 0)
-        : 0
+      const payTypeMap = { cash: 'нал', card: 'безнал', mixed: 'смешанный' }
 
       const res = await fetch('/api/create-order', {
         method: 'POST',
@@ -164,18 +159,10 @@ export default function Cart() {
         body: JSON.stringify({
           клиент_id: client?.id,
           точка_id: pickupPointId || null,
-          тип_оплаты: paymentMethod === 'cash' ? 'Наличные' : paymentMethod === 'card' ? 'Безналичный' : 'Смешанный',
+          тип_оплаты: payTypeMap[paymentMethod] || 'нал',
           статус: orderType === 'preorder' ? 'Предзаказ' : 'Новый',
-          товары_json,
-          итоговая_сумма: total,
-          сумма_нал,
-          сумма_безнал,
-          выгода_за_нал: cashSavings,
-          скидка_объём: volumeDiscount.totalDiscount,
-          скидка_постоянная: loyaltyDiscount,
+          товары,
           списано_ткоинов: tcoinsToSpend,
-          начислено_ткоинов: cashback,
-          шайба_в_подарок: volumeDiscount.freeShayba,
           комментарий: useCartStore.getState().comment || null,
           имя_клиента: client?.имя,
           уникальный_номер: client?.уникальный_номер,
@@ -190,7 +177,10 @@ export default function Cart() {
         updateClient(data.updatedClient)
       }
 
+      const orderId = data.order?.id
+      const earned = data.начислено_ткоинов || 0
       clearCart()
+      showToast(`Заказ #${orderId} оформлен! +${earned} ткоинов`)
       navigate('/orders')
     } catch (err) {
       const msg = err.message || 'Ошибка оформления заказа'
