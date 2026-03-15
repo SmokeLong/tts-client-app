@@ -10,8 +10,10 @@ export default function ProductCardSmall({ product }) {
       className="card min-w-[140px] p-3 flex flex-col items-center gap-2 cursor-pointer press-effect"
       onClick={() => navigate(`/product/${product.id}`)}
     >
-      <div className="w-[50px] h-[50px] rounded-full bg-[rgba(212,175,55,0.1)] border border-[var(--border-gold)] flex items-center justify-center text-[22px]">
-        📦
+      <div className="w-[50px] h-[50px] rounded-full bg-[rgba(212,175,55,0.1)] border border-[var(--border-gold)] flex items-center justify-center text-[22px] overflow-hidden">
+        {product.photo ? (
+          <img src={product.photo} alt={product.name} className="w-full h-full object-contain p-1" loading="lazy" />
+        ) : '📦'}
       </div>
       <p className="text-[10px] font-bold text-[var(--gold-light)] text-center leading-tight">{product.name}</p>
       <p className="text-[8px] text-[var(--text-muted)]">{product.brand}</p>

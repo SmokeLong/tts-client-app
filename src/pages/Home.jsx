@@ -284,8 +284,10 @@ export default function Home() {
                   className="card p-3 min-w-[140px] flex flex-col items-center gap-2 cursor-pointer press-effect shrink-0"
                   onClick={() => navigate(`/product/${product.id}`)}
                 >
-                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#1a1816] to-[#0d0c0a] border border-[var(--border-gold)] flex items-center justify-center text-[26px]">
-                    {getFlavorEmoji(product.flavor || product.name)}
+                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#1a1816] to-[#0d0c0a] border border-[var(--border-gold)] flex items-center justify-center text-[26px] overflow-hidden">
+                    {product.photo ? (
+                      <img src={product.photo} alt={product.name} className="w-full h-full object-contain p-1" loading="lazy" />
+                    ) : getFlavorEmoji(product.flavor || product.name)}
                   </div>
                   <p className="text-[9px] font-bold text-[var(--gold-light)] text-center leading-tight line-clamp-2">
                     {product.name}

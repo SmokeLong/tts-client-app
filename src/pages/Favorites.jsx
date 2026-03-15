@@ -238,7 +238,11 @@ export default function Favorites() {
                   >
                     {/* Image */}
                     <div className="h-[120px] bg-gradient-to-b from-[#1a1816] to-[#0d0c0a] flex items-center justify-center relative">
-                      <span className="text-[50px]">{getFlavorEmoji(product.flavor || product.name)}</span>
+                      {product.photo ? (
+                        <img src={product.photo} alt={product.name} className="w-full h-full object-contain p-3" loading="lazy" />
+                      ) : (
+                        <span className="text-[50px]">{getFlavorEmoji(product.flavor || product.name)}</span>
+                      )}
 
                       {/* Favorite heart */}
                       <button
