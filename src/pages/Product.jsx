@@ -101,17 +101,45 @@ function stockLabel(qty) {
 }
 
 function strengthToBar(mg) {
-  if (!mg) return 3
-  if (mg <= 20) return 1
-  if (mg <= 45) return 2
-  if (mg <= 60) return 3
-  if (mg <= 75) return 4
-  if (mg <= 100) return 5
-  if (mg <= 120) return 6
-  if (mg <= 150) return 7
-  if (mg <= 175) return 8
-  if (mg <= 200) return 9
+  if (!mg || mg <= 0) return 0
+  if (mg <= 30) return 3
+  if (mg <= 50) return 4
+  if (mg <= 65) return 5
+  if (mg <= 75) return 6
+  if (mg <= 100) return 7
+  if (mg <= 120) return 8
+  if (mg <= 150) return 9
   return 10
+}
+
+function aromaSaturationToBar(val) {
+  if (!val) return null
+  const s = String(val).toLowerCase()
+  if (s.includes('приторн')) return 9
+  if (s.includes('сладк')) return 7
+  if (s.includes('освежающ')) return 6
+  if (s.includes('терпк')) return 5
+  const n = Number(val)
+  if (!isNaN(n) && n > 0) return Math.min(Math.round(n), 10)
+  return null
+}
+
+function getDiscountTiers(brand, priceCash) {
+  const b = (brand || '').toUpperCase()
+  const isSibOdens = b.includes('SIBERIA') || b.includes('ODENS')
+
+  if (isSibOdens) {
+    return [
+      { from: 7, discount: 50, gift: null },
+      { from: 10, discount: 70, gift: null },
+    ]
+  }
+  return [
+    { from: 2, discount: 30, gift: null },
+    { from: 5, discount: 50, gift: null },
+    { from: 7, discount: 80, gift: '8 шт' },
+    { from: 10, discount: 90, gift: '11 шт' },
+  ]
 }
 
 export default function ProductPage() {
@@ -131,7 +159,6 @@ function Product() {
   const [product, setProduct] = useState(null)
   const [stock, setStock] = useState({})
   const [locations, setLocations] = useState([])
-  const [discounts, setDiscounts] = useState([])
   const [recommendations, setRecommendations] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(null)
@@ -146,11 +173,10 @@ function Product() {
     setLoading(true)
     setLoadError(null)
     try {
-      const [prodRes, invRes, locRes, discRes, recRes] = await Promise.all([
+      const [prodRes, invRes, locRes, recRes] = await Promise.all([
         supabase.from('товары_публичные').select('*').eq('id', id).single(),
         supabase.from('инвентарь').select('*').eq('товар_id', id),
-        supabase.from('точки').select('*').eq('активна', true).order('порядок'),
-        supabase.from('скидки_объём').select('*').eq('товар_id', id).order('от_количества'),
+        supabase.from('точки').select('*').eq('активна', true).eq('тип', 'Магазин').order('порядок'),
         supabase.from('рекомендации').select('рекомендация_id').eq('товар_id', id),
       ])
 
@@ -168,12 +194,10 @@ function Product() {
         setStock(s)
       }
 
-      // Filter locations: only non-warehouse
+      // Filter locations: only Магазин type
       if (locRes.data) {
-        setLocations(locRes.data.filter(l => l.тип !== 'Склад'))
+        setLocations(locRes.data.filter(l => l.тип === 'Магазин'))
       }
-
-      if (discRes.data) setDiscounts(discRes.data)
 
       // Load recommended products
       if (recRes.data && recRes.data.length > 0) {
@@ -267,20 +291,16 @@ function Product() {
     { icon: '🌊', label: 'ТЕКУЧЕСТЬ', value: product.fluidity || '—' },
   ]
 
-  // Parse aromaSaturation: could be number, numeric string, or text
-  function parseAroma(val) {
-    if (val == null) return null
-    const n = Number(val)
-    if (!isNaN(n) && n > 0) return Math.min(Math.round(n), 10)
-    return null
-  }
-
   const bars = [
     { label: 'КРЕПОСТЬ', value: product.strength ? strengthToBar(product.strength) : null },
     { label: 'СИЛА ЖЖЕНИЯ', value: product.burnStrength ? Math.min(Math.round(Number(product.burnStrength)), 10) : null },
-    { label: 'НАСЫЩЕННОСТЬ АРОМКИ', value: parseAroma(product.aromaSaturation) },
+    { label: 'СИЛА ЭФФЕКТА', value: product.strength ? strengthToBar(product.strength) : null },
+    { label: 'НАСЫЩЕННОСТЬ АРОМКИ', value: aromaSaturationToBar(product.aromaSaturation) },
     { label: 'ОБЩАЯ ОЦЕНКА', value: product.overallRating ? Math.min(Math.round(Number(product.overallRating)), 10) : null },
   ]
+
+  const tcoinsCalc = Math.ceil(product.priceCash * 0.015)
+  const discountTiers = getDiscountTiers(product.brand, product.priceCash)
 
   const descText = product.flavorDescription || product.description || ''
 
@@ -366,10 +386,10 @@ function Product() {
           </div>
 
           {/* Tcoins */}
-          {product.tcoins > 0 && (
+          {tcoinsCalc > 0 && (
             <div className="flex items-center gap-2 mb-4 px-3 py-2 bg-[rgba(212,175,55,0.08)] rounded-xl border border-[rgba(212,175,55,0.15)]">
               <span className="text-[14px]">🪙</span>
-              <span className="text-[11px] text-[var(--gold)]">Начислим <strong>{product.tcoins} ткоинов</strong> за покупку</span>
+              <span className="text-[11px] text-[var(--gold)]">Получите <strong>{tcoinsCalc} ткоинов</strong> за покупку</span>
             </div>
           )}
 
@@ -433,25 +453,30 @@ function Product() {
         <Divider />
 
         {/* Volume discounts */}
-        {discounts.length > 0 && (
-          <>
-            <div className="px-5 py-5">
-              <SectionTitle>СКИДКИ ЗА ОБЪЁМ</SectionTitle>
-              <div className="grid grid-cols-2 gap-2">
-                {discounts.map((d, i) => (
-                  <div key={i} className="card p-3 text-center">
-                    <p className="text-[9px] text-[var(--text-muted)] tracking-wider mb-1">ОТ {d.от_количества} ШТ</p>
-                    <p className="text-[14px] font-extrabold text-[var(--gold-light)]">{d.цена_нал} ₽</p>
-                    {d.цена_безнал !== d.цена_нал && (
-                      <p className="text-[10px] text-[var(--text-muted)]">{d.цена_безнал} ₽ безнал</p>
+        <div className="px-5 py-5">
+          <SectionTitle>СКИДКИ ЗА ОБЪЁМ</SectionTitle>
+          <div className="flex flex-col gap-2">
+            {discountTiers.map((tier, i) => {
+              const finalPrice = product.priceCash - tier.discount
+              const total = finalPrice * tier.from
+              return (
+                <div key={i} className="card p-3 flex items-center justify-between">
+                  <div>
+                    <p className="text-[11px] font-bold text-[var(--gold-light)]">от {tier.from} шт</p>
+                    {tier.gift && (
+                      <p className="text-[9px] text-[var(--green)] mt-0.5">+ подарок ({tier.gift})</p>
                     )}
                   </div>
-                ))}
-              </div>
-            </div>
-            <Divider />
-          </>
-        )}
+                  <div className="text-right">
+                    <p className="text-[13px] font-extrabold text-[var(--gold)]">{finalPrice} ₽/шт</p>
+                    <p className="text-[9px] text-[var(--text-muted)]">−{tier.discount} ₽ · итого {total} ₽</p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+        <Divider />
 
         {/* Stock by Location */}
         <div className="px-5 py-5">

@@ -32,10 +32,14 @@ export default function ProductCard({ product, stock, showFavorite, isFavorite, 
         )}
 
         {/* Badge */}
-        {product.badge && (
+        {product.isNew && (
+          <span className="absolute top-2 left-2 px-2 py-1 rounded-md text-[8px] font-bold bg-gradient-to-br from-[var(--green)] to-[#22c55e] text-[var(--bg-dark)]">
+            Новинка
+          </span>
+        )}
+        {product.badge && !product.isNew && (
           <span className={`absolute top-2 left-2 px-2 py-1 rounded-md text-[8px] font-bold ${
             product.badge === 'ТОП' ? 'gold-gradient-bg text-[var(--bg-dark)]' :
-            product.badge === 'NEW' ? 'bg-gradient-to-br from-[var(--green)] to-[#22c55e] text-[var(--bg-dark)]' :
             'bg-gradient-to-br from-[var(--red)] to-[#ef4444] text-white'
           }`}>
             {product.badge}
@@ -87,9 +91,16 @@ export default function ProductCard({ product, stock, showFavorite, isFavorite, 
 
         {/* Price + Add */}
         <div className="flex items-center justify-between">
-          <span className="text-[14px] font-extrabold text-[var(--gold)]">
-            {product.priceCash} <span className="text-[10px] text-[var(--text-muted)]">₽</span>
-          </span>
+          <div className="flex items-baseline gap-1">
+            <span className="text-[14px] font-extrabold text-[var(--gold)]">{product.priceCash} ₽</span>
+            <span className="text-[9px] text-[var(--text-muted)]">нал</span>
+            {product.priceCard !== product.priceCash && (
+              <>
+                <span className="text-[9px] text-[var(--text-muted)]">·</span>
+                <span className="text-[10px] text-[var(--text-muted)]">{product.priceCard} ₽</span>
+              </>
+            )}
+          </div>
           <button
             onClick={(e) => { e.stopPropagation(); addItem(product) }}
             className="w-9 h-9 rounded-[10px] gold-gradient-bg flex items-center justify-center press-effect shadow-md shadow-[rgba(212,175,55,0.3)]"
