@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
 import { showToast } from '../stores/toastStore'
 
@@ -29,12 +29,14 @@ export default function Auth() {
   const [verifyUrl, setVerifyUrl] = useState('')
   const pollingRef = useRef(null)
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const redirectTo = searchParams.get('redirect') || '/'
   const setAuth = useAuthStore((s) => s.setAuth)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
 
   useEffect(() => {
-    if (isAuthenticated) navigate('/', { replace: true })
-  }, [isAuthenticated, navigate])
+    if (isAuthenticated) navigate(redirectTo, { replace: true })
+  }, [isAuthenticated, navigate, redirectTo])
 
   // Polling for Telegram verification
   useEffect(() => {
@@ -72,12 +74,12 @@ export default function Auth() {
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ телефон: digits, пароль: password }),
+        body: JSON.stringify({ login: '+' + digits, password }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Ошибка входа')
       setAuth('session_' + Date.now(), data.client)
-      navigate('/')
+      navigate(redirectTo)
     } catch (err) {
       setError(err.message)
     } finally {

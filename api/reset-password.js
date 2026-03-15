@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -50,8 +50,8 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Клиент с таким номером не найден' })
     }
 
-    // Хешируем новый пароль
-    const passwordHash = await bcrypt.hash(пароль, 10)
+    // Хешируем новый пароль SHA-256
+    const passwordHash = crypto.createHash('sha256').update(пароль).digest('hex')
 
     const { error } = await supabase
       .from('клиенты')

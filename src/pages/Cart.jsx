@@ -568,15 +568,24 @@ export default function Cart() {
             </div>
           )}
 
-          <button
-            onClick={handleCheckout}
-            disabled={submitting}
-            className={`w-full py-3.5 gold-gradient-bg rounded-xl text-[var(--bg-dark)] font-bold text-[12px] tracking-[2px] press-effect ${
-              submitting ? 'opacity-50 pointer-events-none' : ''
-            }`}
-          >
-            {submitting ? 'ОФОРМЛЕНИЕ...' : orderType === 'preorder' ? 'ОФОРМИТЬ ПРЕДЗАКАЗ' : 'ОФОРМИТЬ ЗАКАЗ'}
-          </button>
+          {client ? (
+            <button
+              onClick={handleCheckout}
+              disabled={submitting}
+              className={`w-full py-3.5 gold-gradient-bg rounded-xl text-[var(--bg-dark)] font-bold text-[12px] tracking-[2px] press-effect ${
+                submitting ? 'opacity-50 pointer-events-none' : ''
+              }`}
+            >
+              {submitting ? 'ОФОРМЛЕНИЕ...' : orderType === 'preorder' ? 'ОФОРМИТЬ ПРЕДЗАКАЗ' : 'ОФОРМИТЬ ЗАКАЗ'}
+            </button>
+          ) : (
+            <button
+              onClick={() => navigate('/auth?redirect=/cart')}
+              className="w-full py-3.5 gold-gradient-bg rounded-xl text-[var(--bg-dark)] font-bold text-[12px] tracking-[2px] press-effect"
+            >
+              ВОЙТИ ДЛЯ ЗАКАЗА
+            </button>
+          )}
         </div>
       </div>
     </div>

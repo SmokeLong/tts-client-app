@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -53,8 +53,8 @@ export default async function handler(req, res) {
         return res.status(200).json({ verified: true, client: existingClient })
       }
 
-      // Хешируем пароль
-      const passwordHash = await bcrypt.hash(данные.пароль, 10)
+      // Хешируем пароль SHA-256
+      const passwordHash = crypto.createHash('sha256').update(данные.пароль).digest('hex')
 
       // Уникальный номер
       const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'

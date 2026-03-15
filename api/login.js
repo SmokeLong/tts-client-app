@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -13,33 +13,30 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end()
 
   try {
-    const { телефон, пароль } = req.body
+    const { login, password } = req.body
 
-    if (!телефон || !пароль) {
-      return res.status(400).json({ error: 'Введите телефон и пароль' })
+    if (!login || !password) {
+      return res.status(400).json({ error: 'Введите логин и пароль' })
     }
 
-    const phoneClean = телефон.replace(/\D/g, '')
-    const phoneFormatted = '+' + phoneClean
-
-    // Ищем клиента по телефону (логин = телефон)
+    // Find client by login
     const { data: client, error } = await supabase
       .from('клиенты')
       .select('*')
-      .eq('логин', phoneFormatted)
+      .eq('логин', login)
       .single()
 
     if (error || !client) {
-      return res.status(401).json({ error: 'Неверный телефон или пароль' })
+      return res.status(401).json({ error: 'Неверный логин или пароль' })
     }
 
-    // Сравниваем пароль через bcrypt
-    const valid = await bcrypt.compare(пароль, client.пароль_хеш)
-    if (!valid) {
-      return res.status(401).json({ error: 'Неверный телефон или пароль' })
+    // SHA-256 compare
+    const hash = crypto.createHash('sha256').update(password).digest('hex')
+    if (hash !== client.пароль_хеш) {
+      return res.status(401).json({ error: 'Неверный логин или пароль' })
     }
 
-    // Обновляем активность
+    // Update activity
     await supabase
       .from('клиенты')
       .update({ последняя_активность: new Date().toISOString() })

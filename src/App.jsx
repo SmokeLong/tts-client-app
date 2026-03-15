@@ -52,17 +52,19 @@ export default function App() {
         <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/auth" element={<Auth />} />
 
-        {/* Protected routes */}
-        <Route path="/" element={<AuthGuard><Home /></AuthGuard>} />
-        <Route path="/catalog" element={<AuthGuard><Catalog /></AuthGuard>} />
-        <Route path="/brand/:id" element={<AuthGuard><Brand /></AuthGuard>} />
-        <Route path="/lineup/:id" element={<AuthGuard><Lineup /></AuthGuard>} />
-        <Route path="/product/:id" element={<AuthGuard><Product /></AuthGuard>} />
-        <Route path="/cart" element={<AuthGuard><Cart /></AuthGuard>} />
-        <Route path="/filters" element={<AuthGuard><Filters /></AuthGuard>} />
-        <Route path="/quick-order" element={<AuthGuard><QuickOrder /></AuthGuard>} />
+        {/* Public routes — shop works without auth */}
+        <Route path="/" element={<Home />} />
+        <Route path="/catalog" element={<Catalog />} />
+        <Route path="/brand/:id" element={<Brand />} />
+        <Route path="/lineup/:id" element={<Lineup />} />
+        <Route path="/product/:id" element={<Product />} />
+        <Route path="/cart" element={<Cart />} />
+        <Route path="/filters" element={<Filters />} />
+        <Route path="/quick-order" element={<QuickOrder />} />
+        <Route path="/favorites" element={<Favorites />} />
+
+        {/* Auth-required routes */}
         <Route path="/orders" element={<AuthGuard><Orders /></AuthGuard>} />
-        <Route path="/favorites" element={<AuthGuard><Favorites /></AuthGuard>} />
         <Route path="/profile" element={<AuthGuard><Profile /></AuthGuard>} />
         <Route path="/settings" element={<AuthGuard><Settings /></AuthGuard>} />
 
