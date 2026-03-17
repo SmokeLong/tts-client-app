@@ -70,6 +70,7 @@ export default function Catalog() {
   const navigate = useNavigate()
   const [products, setProducts] = useState([])
   const [inventory, setInventory] = useState({})
+  const [brandPhotos, setBrandPhotos] = useState({})
   const [loading, setLoading] = useState(true)
   const [activeCategory, setActiveCategory] = useState(null)
   const searchQuery = useFiltersStore((s) => s.searchQuery)
@@ -83,9 +84,10 @@ export default function Catalog() {
   async function loadData() {
     setLoading(true)
     try {
-      const [prodRes, invRes] = await Promise.all([
+      const [prodRes, invRes, mediaRes] = await Promise.all([
         supabase.from('товары_публичные').select('*').eq('активен', true),
         supabase.from('инвентарь').select('*'),
+        supabase.from('медиа').select('*').eq('тип', 'brand'),
       ])
 
       if (prodRes.error) console.error('Catalog load error:', prodRes.error)
@@ -98,6 +100,14 @@ export default function Catalog() {
           inv[row.товар_id][row.точка_id] = row.количество
         }
         setInventory(inv)
+      }
+
+      if (mediaRes.data) {
+        const photos = {}
+        for (const m of mediaRes.data) {
+          if (m.фото_url) photos[m.ключ] = m.фото_url
+        }
+        setBrandPhotos(photos)
       }
     } catch (err) {
       showToast('Ошибка загрузки каталога')
@@ -297,8 +307,10 @@ export default function Catalog() {
                 >
                   <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[var(--gold)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                   <div className="p-4 flex flex-col items-center gap-2">
-                    <div className="w-16 h-16 rounded-full border-2 border-[var(--border-gold)] bg-gradient-to-br from-[#1a1a1a] to-[#0d0d0d] flex items-center justify-center text-[28px]">
-                      {getBrandEmoji(brand.name)}
+                    <div className="w-16 h-16 rounded-full border-2 border-[var(--border-gold)] bg-gradient-to-br from-[#1a1a1a] to-[#0d0d0d] flex items-center justify-center text-[28px] overflow-hidden">
+                      {brandPhotos[brand.name] ? (
+                        <img src={brandPhotos[brand.name]} alt={brand.name} className="w-full h-full object-cover" />
+                      ) : getBrandEmoji(brand.name)}
                     </div>
                     <p className="text-[13px] font-bold gold-gradient-text text-center leading-tight">
                       {brand.name}

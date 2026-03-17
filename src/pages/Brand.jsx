@@ -76,6 +76,8 @@ export default function Brand() {
   const navigate = useNavigate()
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
+  const [brandPhoto, setBrandPhoto] = useState(null)
+  const [lineupPhotos, setLineupPhotos] = useState({})
 
   const decodedBrand = decodeURIComponent(brandName)
 
@@ -86,14 +88,33 @@ export default function Brand() {
   async function loadProducts() {
     setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('товары_публичные')
-        .select('*')
-        .eq('бренд', decodedBrand)
-        .eq('активен', true)
+      const [prodRes, mediaRes] = await Promise.all([
+        supabase
+          .from('товары_публичные')
+          .select('*')
+          .eq('бренд', decodedBrand)
+          .eq('активен', true),
+        supabase
+          .from('медиа')
+          .select('*')
+          .or(`and(тип.eq.brand,ключ.eq.${decodedBrand}),and(тип.eq.lineup,ключ.like.${decodedBrand}::*)`),
+      ])
 
-      if (error) console.error('Brand load error:', error)
-      if (data) setProducts(data.map(mapProduct))
+      if (prodRes.error) console.error('Brand load error:', prodRes.error)
+      if (prodRes.data) setProducts(prodRes.data.map(mapProduct))
+
+      if (mediaRes.data) {
+        const lPhotos = {}
+        for (const m of mediaRes.data) {
+          if (!m.фото_url) continue
+          if (m.тип === 'brand') setBrandPhoto(m.фото_url)
+          if (m.тип === 'lineup') {
+            const lineupName = m.ключ.split('::')[1]
+            if (lineupName) lPhotos[lineupName] = m.фото_url
+          }
+        }
+        setLineupPhotos(lPhotos)
+      }
     } catch (err) {
       console.error('Brand load error:', err)
     } finally {
@@ -137,13 +158,15 @@ export default function Brand() {
             {/* Hero */}
             <div className="flex flex-col items-center py-6 mb-4">
               <div
-                className="w-[120px] h-[120px] rounded-full border-2 border-[var(--gold)] flex items-center justify-center text-[56px] mb-4"
+                className="w-[120px] h-[120px] rounded-full border-2 border-[var(--gold)] flex items-center justify-center text-[56px] mb-4 overflow-hidden"
                 style={{
                   background: 'linear-gradient(145deg, rgba(30,27,24,1), rgba(15,13,11,1))',
                   boxShadow: '0 0 40px rgba(212,175,55,0.2)',
                 }}
               >
-                {getBrandEmoji(decodedBrand)}
+                {brandPhoto ? (
+                  <img src={brandPhoto} alt={decodedBrand} className="w-full h-full object-cover" />
+                ) : getBrandEmoji(decodedBrand)}
               </div>
               <h1 className="text-[22px] font-extrabold gold-gradient-text tracking-[3px] mb-1">
                 {decodedBrand}
@@ -182,8 +205,10 @@ export default function Brand() {
                   onClick={() => navigate(`/lineup/${encodeURIComponent(decodedBrand + '::' + lineup.name)}`)}
                   className="card p-4 flex items-center gap-3.5 press-effect cursor-pointer group"
                 >
-                  <div className="w-11 h-11 rounded-[10px] bg-[rgba(212,175,55,0.1)] flex items-center justify-center text-[20px] shrink-0">
-                    {getLineupEmoji(lineup.name)}
+                  <div className="w-11 h-11 rounded-[10px] bg-[rgba(212,175,55,0.1)] flex items-center justify-center text-[20px] shrink-0 overflow-hidden">
+                    {lineupPhotos[lineup.name] ? (
+                      <img src={lineupPhotos[lineup.name]} alt={lineup.name} className="w-full h-full object-cover" />
+                    ) : getLineupEmoji(lineup.name)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[12px] font-bold text-[var(--gold-light)] truncate">{lineup.name}</p>
